@@ -143,5 +143,5 @@ class BreastMetatstatic_Patient(Patient):
     def __init__(self):
         Patient.__init__(self,self.env,condition=1)
         self.metastatic_regiment = random.randint(1, 3)
-    def treatment_regime(self):
+    def get_treatment_regime(self):
         return
