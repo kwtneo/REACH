@@ -6,5 +6,5 @@ class HostpitalATUResources:
         self.docs = simpy.PriorityResource(env, capacity=number_of_docs)
         self.chairs = simpy.PriorityResource(env, capacity=number_of_chairs)
         self.nurses = simpy.PriorityResource(env, capacity=number_of_nurses)
-        self.pharmacists = simpy.PriorityResource(env, capacity=number_of_pharmacists)
-        self.cashiers = simpy.PriorityResource(env, capacity=number_of_cashiers)
+        self.pharmacists = simpy.Resource(env, capacity=number_of_pharmacists)
+        self.cashiers = simpy.Resource(env, capacity=number_of_cashiers)

@@ -3,9 +3,14 @@ import Patient
 import Resources
 import random
 import simpy
+import pandas as pd
 import matplotlib.pyplot as plt
 
+#global Global_vars
 Global_vars = Config.Global_vars
+
+
+
 
 
 class Model:
@@ -59,9 +64,8 @@ class Model:
     def build_audit_results(self):
         """At end of model run, transfers results held in lists into a pandas
         DataFrame."""
-
         Global_vars.results['time'] = Global_vars.audit_time
-        Global_vars.results['patients in ED'] = Global_vars.audit_patients_in_ED
+        Global_vars.results['patients in ATU'] = Global_vars.audit_patients_in_ATU
         Global_vars.results['all patients waiting'] = Global_vars.audit_patients_waiting
         Global_vars.results['priority 1 patients treatment waiting'] = Global_vars.audit_patients_waiting_p1
         Global_vars.results['priority 2 patients treatment waiting'] = Global_vars.audit_patients_waiting_p2
@@ -81,8 +85,8 @@ class Model:
         # Chart loops through 3 priorites
         markers = ['o', 'x', '^']
         for priority in range(1, 4):
-            x = (Global_vars.patient_queuing_results[Global_vars.patient_queuing_results['priority']==priority].index)
-            y = (Global_vars.patient_queuing_results[Global_vars.patient_queuing_results['priority']==priority]['q_time'])
+            x = Global_vars.patient_queuing_results[Global_vars.patient_queuing_results['priority']==priority].index
+            y = Global_vars.patient_queuing_results[Global_vars.patient_queuing_results['priority']==priority]['q_time']
 
             ax1.scatter(x, y,marker=markers[priority - 1],label='Priority ' + str(priority))
 
@@ -139,9 +143,9 @@ class Model:
             Global_vars.audit_patients_waiting_p3.append(Global_vars.patients_waiting_by_priority[2])
             # Record patients waiting by asking length of dictionary of all
             # patients (another way of doing things)
-            Global_vars.audit_patients_in_ED.append(len(Patient.all_patients))
+            Global_vars.audit_patients_in_ATU.append(len(Patient.CancerPatient.all_patients))
             # Record resources occupied
-            Global_vars.audit_reources_used.append(self.nurse_resources.nurses.count)
+            Global_vars.audit_reources_used.append(self.nurse_resources.count)
             # Trigger next audit after interval
             yield self.env.timeout(Global_vars.audit_interval)
 
@@ -182,56 +186,6 @@ class Model:
         # plot results
         self.chart()
 
-    def get_treatment(self, p:Patient, t_time:float, t_desc:str):
-        with self.nurse_resources.nurses.request(priority=p.priority) as req:
-            # Increment count of number of patients waiting. 1 is subtracted
-            # from priority to align priority (1-3) with zero indexed list.
-            #if(p.id not in Global_vars.patients_db.keys()):
-            Global_vars.treatment_time += t_time
-
-            Global_vars.patients_waiting += 1
-            Global_vars.patients_waiting_by_priority[p.priority - 1] += 1
-            print('inputs: desc='+t_desc+' time_Input:'+str(t_time)+' counter:'+str(Global_vars.patients_waiting)+' total treatment time:'+str(Global_vars.treatment_time))
-
-            # Wait for resources to become available
-            yield req
-
-            # Resources now available. Record time patient starts to see doc
-            p.treatment_time_start = self.env.now
-            # Record patient queuing time in patient object
-            p.queuing_time = self.env.now - p.time_in
-
-            # Reduce count of number of patients (waiting)
-            #if(p.id not in Global_vars.patients_db.keys()):
-            Global_vars.patients_waiting_by_priority[p.priority - 1] -= 1
-            Global_vars.patients_waiting -= 1
-
-
-            # Create a temporary results list with patient priority and queuing
-            # time
-            _results = [p.priority, p.queuing_time]
-
-            # Hold patient (with nurse) for treatment time required
-            #
-            #
-            #
-            #for treatment_item in treatment_regime:
-            #    t_time = treatment_item[0]
-                #t_time = random.normalvariate(treatment_item[0], treatment_item[1])
-                #t_time = 0 if t_time < 0 else t_time
-            yield self.env.timeout(t_time)
-
-            # At end of treatment add time spent to temp results
-            _results.append(self.env.now - p.treatment_time_start)
-
-            # Record results in global results data if warm-up complete
-            if self.env.now >= Global_vars.warm_up:
-                Global_vars.patient_queuing_results.loc[p.id] = _results
-
-            # Delete patient (removal from patient dictionary removes only
-            # reference to patient and Python then automatically cleans up)
-            #del Patient.all_patients[p.id]
-
 
     def trigger_admissions(self):
         """Generates new patient admissions. Each patient is an instance of the
@@ -244,17 +198,29 @@ class Model:
         while len(Patient.CancerPatient.all_patients) < Global_vars.max_patients:
             # Initialise new patient (pass environment to be used to record
             # current simulation time)
-            p = Patient.BreastAdjuvant_Patient(self.env,None)
+            p = Patient.BreastAdjuvant_Patient(self.env,Global_vars.patient_count,None)
+            Global_vars.patient_count += 1
+            print('current patient count=' + str(Global_vars.patient_count))
+
             # Add patient to dictionary of patients
             Patient.CancerPatient.all_patients[p.id] = p
+            self.env.process(p.experience(hospital=self))
             # Pass patient to treatment
-            for treatment_item in p.get_treatment_regime():
-                t_time = treatment_item[0]
-                t_stdev = treatment_item[1]
-                t_desc = treatment_item[2]
-                t_resource_depend = treatment_item[3]
-                #depend on admin,treatment,wait
-                self.env.process(self.get_treatment(p, t_time,t_stdev,t_desc, t_resource_depend))
+            #treatment_regime = p.get_treatment_regime()
+
+            #for treatment_item in treatment_regime:
+            #    print(treatment_item)
+            #    t_time,t_stdev,t_desc,t_resource_depend,t_type = treatment_item
+            #
+            #   print('regime_item_type:'+t_type+' regime desc:'+t_desc)
+            #    #depend on admin,treatment,wait
+            #    if (t_type == 'admin'):
+            #        self.env.process(self.process_admin(p, t_time, t_desc, t_resource_depend))
+            #    if (t_type == 'treatment'):
+            #        self.env.process(self.process_treatment(p, t_time, t_desc, t_resource_depend))
+            #    if (t_type == 'time_between_visits'):
+            #        self.env.process(self.process_wait(p, t_time, t_desc, t_resource_depend))
+
                 # Sample time for next admission
             next_admission = random.expovariate(1 / Global_vars.inter_arrival_time)
             # Schedule next admission
