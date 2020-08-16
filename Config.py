@@ -14,14 +14,19 @@ class Global_vars:
 
     # TO BE IMPLEMENTED
     # Number of DMOs/doctors in ATU
-    number_of_docs = 2
+    number_of_docs = 1
 
     # Number of nurses in ATU
-    number_of_nurses = 2
+    number_of_nurses = 1
 
     # number of chairs in ATU
-    number_of_chairs = 2
+    number_of_chairs = 1
 
+    # number of pharmacists
+    number_of_pharmacists = 1
+
+    # number of cashiers
+    number_of_cashiers = 1
 
     # Time between audits
     audit_interval = 1

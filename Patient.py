@@ -3,7 +3,7 @@ import random
 
 Global_vars = Config.Global_vars
 
-class Patient:
+class CancerPatient:
 
     """The Patient class is for patient objects. Each patient is an instance of
     this class. This class also holds a static dictionary which holds all
