@@ -6,7 +6,7 @@ import simpy
 import pandas as pd
 import matplotlib.pyplot as plt
 
-#global Global_vars
+global Global_vars
 Global_vars = Config.Global_vars
 
 
@@ -107,7 +107,7 @@ class Model:
         ax2.plot(x, y3, marker='^', label='Priority 3')
         #ax2.plot(x, y4, marker='s', label='All')
         ax2.set_xlabel('Time')
-        ax2.set_ylabel('discrete treatments that require waiting')
+        ax2.set_ylabel('patients that require waiting')
         ax2.legend()
         ax2.grid(True, which='both', lw=1, ls='--', c='.75')
 
@@ -160,16 +160,16 @@ class Model:
         """
 
         # Set up resources using Resouces class
-        hospitalResources = Resources.HostpitalATUResources(self.env, Global_vars.number_of_docs,
+        self.hospitalResources = Resources.HostpitalATUResources(self.env, Global_vars.number_of_docs,
                                                             Global_vars.number_of_nurses,
                                                             Global_vars.number_of_chairs,
                                                             Global_vars.number_of_pharmacists,
                                                             Global_vars.number_of_cashiers)
-        self.doc_resources = hospitalResources.docs
-        self.nurse_resources = hospitalResources.nurses
-        self.chair_resources = hospitalResources.chairs
-        self.pharmacists_resources = hospitalResources.pharmacists
-        self.cashier_resources = hospitalResources.cashiers
+        self.doc_resources = self.hospitalResources.docs
+        self.nurse_resources = self.hospitalResources.nurses
+        self.chair_resources = self.hospitalResources.chairs
+        self.pharmacists_resources = self.hospitalResources.pharmacists
+        self.cashier_resources = self.hospitalResources.cashiers
 
         # Initialise processes that will run on model run
         self.env.process(self.trigger_admissions())
@@ -198,13 +198,14 @@ class Model:
         while len(Patient.CancerPatient.all_patients) < Global_vars.max_patients:
             # Initialise new patient (pass environment to be used to record
             # current simulation time)
-            p = Patient.BreastAdjuvant_Patient(self.env,Global_vars.patient_count,None)
+            #p = Patient.BreastAdjuvant_Patient(self.env,Global_vars.patient_count,None)
+            p = Patient.BreastMetatstatic_Patient(self.env, Global_vars.patient_count, self.hospitalResources, None)
             Global_vars.patient_count += 1
             print('current patient count=' + str(Global_vars.patient_count))
 
             # Add patient to dictionary of patients
             Patient.CancerPatient.all_patients[p.id] = p
-            self.env.process(p.experience(hospital=self))
+            self.env.process(p.undergo_regiment())
             # Pass patient to treatment
             #treatment_regime = p.get_treatment_regime()
 

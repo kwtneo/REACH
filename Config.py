@@ -1,6 +1,6 @@
 import random
 import pandas as pd
-
+global Global_vars
 
 class Global_vars:
     # Set up counter for number for patients entering simulation
@@ -22,11 +22,11 @@ class Global_vars:
 
     # Simulation run time and warm-up (warm-up is time before audit results are
     # collected)
-    sim_duration = 20 * 24 * 60
-    warm_up = 5
+    sim_duration = 1 * 24 * 60
+    warm_up = 1
 
     # Average time between patients arriving
-    inter_arrival_time = .25 * 24 * 60
+    inter_arrival_time = 1
 
     # TO BE IMPLEMENTED
     # Number of DMOs/doctors in ATU
@@ -49,7 +49,7 @@ class Global_vars:
 
     # Various inputs - ad this point only averages/means, but placeholders for standard deviation
     # Average and standard deviation of time patients spends for various activities
-    max_patients = 10
+    max_patients = 5
 
 
     # appointment_time_mean = 18
@@ -73,7 +73,7 @@ class Global_vars:
     patient_queuing_results = pd.DataFrame(columns=['priority', 'q_time', 'treatment_time'])
     results = pd.DataFrame()
     patient_treatment_queuing_results = pd.DataFrame(columns=['priority', 'q_time', 'treatment_time'])
-    patient_admin_queuing_results = pd.DataFrame(columns=['priority', 'q_time', 'admin_time'])
+    patient_admin_queuing_results = None
     # patient_treatment_queuing_results = pd.DataFrame(columns=['priority', 'q_time', 'treatment_time'])
 
 
