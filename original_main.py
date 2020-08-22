@@ -58,8 +58,7 @@ class Global_vars:
     audit_reources_used = []
 
     # Set up dataframes to store results (will be transferred from lists)
-    patient_queuing_results = pd.DataFrame(
-        columns=['priority', 'q_time', 'consult_time'])
+    patient_queuing_results = pd.DataFrame(columns=['priority', 'q_time', 'consult_time'])
     results = pd.DataFrame()
 
     # Set up counter for number fo aptients entering simulation
