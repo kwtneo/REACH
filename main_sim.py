@@ -15,7 +15,7 @@ num_pharmacists = 1
 
 
 #p_inter = 2
-SIM_TIME = 7*24*60
+SIM_TIME = 30*24*60
 
 class audit_vars:
     warm_up = 0
@@ -135,6 +135,15 @@ class patient_vars:
     breast_paclitax_adr_probability = 0.027
     breast_paclitax_adr_probability_gen = (1 if random.random() < 0.027 else 0 for _ in range(1000000))
 
+    breast_adj_blood_test_atu_probability = 0.3
+    breast_adj_blood_test_atu_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(1000000))
+    breast_docetaxel_adr_probability = 0.04
+    breast_docetaxel_adr_probability_gen = (1 if random.random() < 0.04 else 0 for _ in range(1000000))
+    breast_paclitaxel_adr_probability = 0.027
+    breast_paclitaxel_adr_probability_gen = (1 if random.random() < 0.027 else 0 for _ in range(1000000))
+
+
+
     # conditions:
     conditions_map = {1: 'Breast_Metastatic', 2: 'Breast_Adjuvant', 3: 'GI_Metastatic', 4: 'GI_Adjuvant',
                            5: 'Lung_Metastatic', 6: 'Lung_Adjuvant'}
@@ -187,8 +196,30 @@ class Hospital(object):
              'ATU (T) blood test screening': (patient_vars.blood_test_screening_time_mean, patient_vars.blood_test_screening_time_sd, ['dmo'],'pretreatment'),
              'ATU (T) premedication':(patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd,['nurse'], 'pretreatment'),
              'ATU (T) paclitaxel':(patient_vars.breast_paclitax_time_mean, patient_vars.breast_paclitax_time_sd,['chair', 'nurse'], 'treatment'),
-             'ATU (T) paclitaxel ADR':(patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd, ['chair', 'nurse'], 'treatment'),
+             'ATU (T) paclitaxel ADR':(patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd,
+                                       ['chair', 'nurse'], 'treatment'),
              'ATU (T) post chemo pharmacy': (patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],'pharmacy'),
+
+                'ATU blood test': (
+                patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment'),
+                'ATU blood test review': (
+                patient_vars.review_test_results_time_mean, patient_vars.review_test_results_time_sd, ['dmo'],
+                'pretreatment'),
+                'ATU blood test screening': (
+                patient_vars.blood_test_screening_time_mean, patient_vars.blood_test_screening_time_sd, ['dmo'],
+                'pretreatment'),
+                'ATU premedication': (
+                patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd, ['nurse'],
+                'pretreatment'),
+                'ATU Docetaxel': (
+                patient_vars.breast_dox_cyclophos_time_mean, patient_vars.breast_dox_cyclophos_time_sd,
+                ['chair', 'nurse'], 'treatment'),
+                'ATU Docetaxel ADR': (
+                patient_vars.breast_dox_cyclophos_adr_time_mean, patient_vars.breast_dox_cyclophos_adr_time_sd,
+                ['chair', 'nurse'], 'treatment'),
+                'ATU post chemo pharmacy': (
+                patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],
+                'pharmacy'),
             }
 
     def undergo_treatment(self, treatment_desc, p_id):
@@ -201,19 +232,37 @@ class Hospital(object):
             audit_vars.patients_between_treatment_cycles -= 1
             print('Patient %s has finished generic wait at %.2f.' % (p_id, env.now))
 
-
+#not sure if we can make this a class
 def Patient(env, id, hosp):
-
     print('Patient %s arrives at the hospital at %.2f.' % (id, env.now))
+
+    p_type = random.randint(1, 3)
     #regimes = ['1st psa registration time','generic waiting','consultation','psa payment','psa scheduling','1st blood test','IV start - ATU (AC)']
-    regimes = Regimes.Breast_Adjuvant_Regimes(
+    if(p_type==1):
+        regimes = Regimes.Breast_Adjuvant_Regimes(
         patient_vars.breast_adj_blood_test1_probability_gen,
         patient_vars.breast_adj_blood_test2_probability_gen,
         patient_vars.breast_adj_blood_test_atu_ac_probability_gen,
         patient_vars.breast_dox_cyclophos_adr_probability_gen,
         patient_vars.breast_adj_blood_test_atu_t_probability_gen,
         patient_vars.breast_paclitax_adr_probability_gen
-    )
+        )
+    if(p_type==2):
+        regimes=Regimes.Breast_Metastatic_Regimes('docetaxel',
+                                          patient_vars.breast_adj_blood_test1_probability_gen,
+                                          patient_vars.breast_adj_blood_test2_probability_gen,
+                                          patient_vars.breast_adj_blood_test_atu_probability_gen,
+                                          patient_vars.breast_docetaxel_adr_probability_gen
+                                  )
+
+    if(p_type==3):
+        regimes=Regimes.Breast_Metastatic_Regimes('paclitaxel',
+                                          patient_vars.breast_adj_blood_test1_probability_gen,
+                                          patient_vars.breast_adj_blood_test2_probability_gen,
+                                          patient_vars.breast_adj_blood_test_atu_probability_gen,
+                                          patient_vars.breast_paclitaxel_adr_probability_gen
+                                  )
+
 
     p_priority = random.randint(1, 3)
     audit_vars.patient_count += 1
@@ -224,12 +273,61 @@ def Patient(env, id, hosp):
     item_count = 0
     for item in regimes:
         dependency = hosp.regime_details[item][2]
+
+
         #print(dependency)
         if (dependency is None):
             yield env.process(hosp.undergo_treatment(item, id))
         else:
-            if('dmo' in dependency):
+            #if ADR, need to prioritise for 2 ATU nurses, 1 DMO and 1 Pharmacist
+            if('ADR' in item):
+                audit_vars.patients_waiting += 1
+                audit_vars.patients_waiting_by_priority[1 - 1] += 1
 
+                n1_adr_req=hosp.nurses.request(priority=1)
+                n2_adr_req = hosp.nurses.request(priority=1)
+                adr_dmo_req = hosp.docs.request(priority=1)
+                adr_pharm_req = hosp.pharmacists.request()
+                yield n1_adr_req & n2_adr_req & adr_dmo_req & adr_pharm_req
+                adr_treatment = env.now
+                p_queuing_time = env.now - p_time_in
+                print('Patient %s gets attended due to ADR: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
+                audit_vars.patients_at_treatment += 1
+                audit_vars.patients_waiting -= 1
+                audit_vars.patients_waiting_by_priority[1 - 1] -= 1
+
+                yield env.process(hosp.undergo_treatment(item, id))
+                audit_vars.patients_at_treatment -= 1
+                hosp.nurses.release(n1_adr_req)
+                hosp.nurses.release(n2_adr_req)
+                hosp.docs.release(adr_dmo_req)
+                hosp.pharmacists.release(adr_pharm_req)
+                print('Patient %s ends ADR treatment: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
+
+            elif ('chair' in dependency):
+                with hosp.chairs.request(priority=p_priority) as chr_request:
+                    audit_vars.patients_waiting += 1
+                    audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
+                    yield chr_request
+                    print('Patient %s gets chair at %.2f.: %s. Waiting for nurse for treatment.' % (id, env.now, item))
+                    if ('nurse' in dependency):
+                        with hosp.nurses.request(priority=p_priority) as nurchair_request:
+                            yield nurchair_request
+                            p_time_chair_treatment = env.now
+                            p_queuing_time = env.now - p_time_in
+                            audit_vars.patients_waiting -= 1
+                            audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
+
+                            print('Patient %s gets attended by nurse at %.2f.: %s.' % (id, env.now, item))
+                            audit_vars.patients_at_treatment += 1
+                            yield env.process(hosp.undergo_treatment(item, id))
+                            audit_vars.patients_at_treatment -= 1
+                            print('Patient %s stops treatment in chair at %.2f.' % (id, env.now))
+
+                    else:
+                        audit_vars.patients_waiting -= 1
+                        audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
+            elif('dmo' in dependency):
                 with hosp.docs.request(priority=p_priority) as doc_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
@@ -261,32 +359,10 @@ def Patient(env, id, hosp):
                         print('Patient %s stops treatment with dmo %.2f.' % (id, env.now))
 
 
-            if('chair' in dependency):
-                with hosp.chairs.request(priority=p_priority) as chr_request:
-                    audit_vars.patients_waiting += 1
-                    audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
-                    yield chr_request
-                    print('Patient %s gets chair at %.2f.: %s. Waiting for nurse for treatment.' % (id, env.now, item))
-                    if('nurse' in dependency):
-                        with hosp.nurses.request(priority=p_priority) as nurchair_request:
-                            yield nurchair_request
-                            p_time_chair_treatment = env.now
-                            p_queuing_time = env.now - p_time_in
-                            audit_vars.patients_waiting -= 1
-                            audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
-
-                            print('Patient %s gets attended by nurse at %.2f.: %s.' % (id, env.now,item))
-                            audit_vars.patients_at_treatment += 1
-                            yield env.process(hosp.undergo_treatment(item, id))
-                            audit_vars.patients_at_treatment -= 1
-                            print('Patient %s stops treatment in chair at %.2f.' % (id, env.now))
-
-                    else:
-                        audit_vars.patients_waiting -= 1
-                        audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
 
 
-            if('nurse' in dependency):
+
+            elif('nurse' in dependency):
                 with hosp.nurses.request(priority=p_priority) as nur_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
@@ -312,7 +388,7 @@ def Patient(env, id, hosp):
                     print('Patient %s stops %s %.2f.' % (id, 'admin process' if hosp.regime_details[item][3]=='admin' else 'treatment', env.now))
 
 
-            if('cashier' in dependency):
+            elif('cashier' in dependency):
                 with hosp.cashiers.request() as cas_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
@@ -330,7 +406,7 @@ def Patient(env, id, hosp):
                     print('Patient %s leaves cashiers station at %.2f.' % (id, env.now))
 
 
-            if('pharmacist' in dependency):
+            elif('pharmacist' in dependency):
                 with hosp.pharmacists.request() as phm_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
