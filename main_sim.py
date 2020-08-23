@@ -8,8 +8,8 @@ import Regimes
 
 RANDOM_SEED = random.randint(1,10000)
 num_chairs = 2
-num_nurses = 3
-num_docs = 2
+num_nurses = 2
+num_docs = 1
 num_cashiers = 1
 num_pharmacists = 1
 
@@ -34,6 +34,7 @@ class audit_vars:
     audit_patients_at_consultation = []
     audit_patients_at_treatment = []
     audit_patients_at_admin = []
+    audit_patients_adr = []
 
     audit_resources_used = []
     audit_nurses_occupied = []
@@ -42,7 +43,7 @@ class audit_vars:
     audit_pharmacists_occupied = []
     audit_cashiers_occupied = []
 
-    audit_interval = 100
+    audit_interval = 5
     #visualization data stores
     #resource utilization graphs
 
@@ -56,6 +57,7 @@ class audit_vars:
     patients_at_consultation = 0
     patients_at_treatment = 0
     patients_at_admin = 0
+    patients_adr = 0
 
     patients_waiting_by_priority = [0, 0, 0]
     patient_queuing_results = pd.DataFrame(columns=['priority', 'waiting_time', 'consult_time','treatment_time','cashier_time','pharmacy_time'])
@@ -186,7 +188,7 @@ class Hospital(object):
              'ATU (AC) blood test screening':(patient_vars.blood_test_screening_time_mean, patient_vars.blood_test_screening_time_sd, ['dmo'], 'pretreatment'),
              'ATU (AC) premedication':(patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd,['nurse'], 'pretreatment'),
              'ATU (AC) Doxorubicin, Cyclophosphamide':(patient_vars.breast_dox_cyclophos_time_mean, patient_vars.breast_dox_cyclophos_time_sd, ['chair', 'nurse'], 'treatment'),
-             'ATU (AC) Doxorubicin, Cyclophosphamide ADR':(patient_vars.breast_dox_cyclophos_adr_time_mean,patient_vars.breast_dox_cyclophos_adr_time_sd,['chair', 'nurse'], 'treatment'),
+             'ATU (AC) Doxorubicin, Cyclophosphamide ADR':(patient_vars.breast_dox_cyclophos_adr_time_mean,patient_vars.breast_dox_cyclophos_adr_time_sd,['adr'], 'treatment'),
              'ATU (AC) post chemo pharmacy':(patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd,['pharmacist'], 'pharmacy'),
              '4th psa registration':(patient_vars.psa_registration_time_mean, patient_vars.psa_registration_time_sd, ['nurse'], 'admin'),
              'IV start - ATU (T)':(patient_vars.IV_start_time_mean, patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment'),
@@ -197,7 +199,7 @@ class Hospital(object):
              'ATU (T) premedication':(patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd,['nurse'], 'pretreatment'),
              'ATU (T) paclitaxel':(patient_vars.breast_paclitax_time_mean, patient_vars.breast_paclitax_time_sd,['chair', 'nurse'], 'treatment'),
              'ATU (T) paclitaxel ADR':(patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd,
-                                       ['chair', 'nurse'], 'treatment'),
+                                       ['adr'], 'treatment'),
              'ATU (T) post chemo pharmacy': (patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],'pharmacy'),
 
                 'ATU blood test': (
@@ -280,7 +282,7 @@ def Patient(env, id, hosp):
             yield env.process(hosp.undergo_treatment(item, id))
         else:
             #if ADR, need to prioritise for 2 ATU nurses, 1 DMO and 1 Pharmacist
-            if('ADR' in item):
+            if('ADR' in item or 'adr' in dependency):
                 audit_vars.patients_waiting += 1
                 audit_vars.patients_waiting_by_priority[1 - 1] += 1
 
@@ -293,11 +295,13 @@ def Patient(env, id, hosp):
                 p_queuing_time = env.now - p_time_in
                 print('Patient %s gets attended due to ADR: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
                 audit_vars.patients_at_treatment += 1
+                audit_vars.patients_adr += 1
                 audit_vars.patients_waiting -= 1
                 audit_vars.patients_waiting_by_priority[1 - 1] -= 1
 
                 yield env.process(hosp.undergo_treatment(item, id))
                 audit_vars.patients_at_treatment -= 1
+                #audit_vars.patients_adr -= 1
                 hosp.nurses.release(n1_adr_req)
                 hosp.nurses.release(n2_adr_req)
                 hosp.docs.release(adr_dmo_req)
@@ -435,7 +439,7 @@ def Patient(env, id, hosp):
 def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists):
     # Create the hospital
     audit_vars.hospital = Hospital(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists)
-    t_inter =24*60/3
+    t_inter =24*60/4
     i = 0
     # Create initial
 
@@ -492,6 +496,7 @@ def perform_audit(env):
         audit_vars.audit_patients_at_consultation.append(audit_vars.patients_at_consultation)
         audit_vars.audit_patients_at_treatment.append(audit_vars.patients_at_treatment)
         audit_vars.audit_patients_between_treatments.append(patients_in_between_treatments)
+        audit_vars.audit_patients_adr.append(audit_vars.patients_adr)
 
         print()
         print('####################################### AUDIT Begin: #######################################')
@@ -527,6 +532,7 @@ def perform_audit(env):
 def build_audit_results():
     """At end of model run, transfers results held in lists into a pandas
     DataFrame."""
+
     audit_vars.results['time'] = audit_vars.audit_time
     audit_vars.results['patients in ATU'] = audit_vars.audit_patients_in_ATU
     audit_vars.results['all patients waiting'] = audit_vars.audit_patients_waiting
@@ -537,6 +543,7 @@ def build_audit_results():
     audit_vars.results['patients at pharmacy'] = audit_vars.audit_patients_at_pharmacy
     audit_vars.results['patients in between treatments'] = audit_vars.audit_patients_between_treatments
     audit_vars.results['patients at cashier'] = audit_vars.audit_patients_at_cashier
+    audit_vars.results['patients ADR'] = audit_vars.audit_patients_adr
 
     audit_vars.results['priority 1 patients waiting'] = audit_vars.audit_patients_waiting_p1
     audit_vars.results['priority 2 patients waiting'] = audit_vars.audit_patients_waiting_p2
@@ -554,6 +561,8 @@ def build_audit_results():
     audit_vars.results['chair utilization'] = (audit_vars.results['chairs occupied'].astype(float) / num_chairs).astype(float)
     audit_vars.results['cashier utilization'] = (audit_vars.results['cashiers occupied'].astype(float) / num_cashiers).astype(float)
     audit_vars.results['pharmacist utilization'] = (audit_vars.results['pharmacists occupied'].astype(float) / num_pharmacists).astype(float)
+
+    audit_vars.results['datetime'] = pd.date_range(start='1/1/2020', periods=len(audit_vars.results), freq=str(audit_vars.audit_interval)+'min')
 
     audit_vars.patient_queuing_results.to_csv('patient results.csv')
     audit_vars.results.to_csv('operational results.csv')
