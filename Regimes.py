@@ -87,13 +87,24 @@ def Breast_Metastatic_Regimes(main_drug='docetaxel',
         at_cycle.append('ATU Docetaxel')
         if(next(breast_met_adr_probability_gen)):
             at_cycle.append('ATU Docetaxel ADR')
+        at_cycle.append('ATU post chemo pharmacy');
+        regimes = clinic1 + time_between + at_cycle + time_between\
+                  + clinic2  + time_between + at_cycle + time_between + clinic2
+
     elif(main_drug.lower()=='paclitaxel'):
         at_cycle.append('ATU Paclitaxel')
         if(next(breast_met_adr_probability_gen)):
             at_cycle.append('ATU Paclitaxel ADR')
-    at_cycle.append('ATU post chemo pharmacy');
+        at_cycle.append('ATU post chemo pharmacy');
+        regimes = clinic1 + time_between + at_cycle + time_between\
+                  + clinic2  + time_between + at_cycle + time_between + clinic2
 
-    regimes = clinic1 + time_between + at_cycle + time_between\
-              + clinic2 + at_cycle + time_between + clinic2
+    elif(main_drug.lower()=='Capecitabine'):
+        at_cycle.append('ATU Capecitabine')
+        #at_cycle.append('ATU post chemo pharmacy');
+        regimes = clinic1 + time_between + at_cycle + time_between\
+                  + clinic2 + at_cycle + time_between + clinic2
+
+
     return regimes
 

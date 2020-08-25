@@ -116,6 +116,9 @@ class patient_vars:
     breast_paclitax_adr_time_mean = 67.8
     breast_paclitax_adr_time_sd = 7 / 10 * breast_paclitax_adr_time_mean
 
+    breast_capecitabine_time_mean = 10
+    breast_capecitabine_time_sd = 7/10*breast_capecitabine_time_mean
+
     post_chemo_pharmacy_time_mean = 5
     post_chemo_pharmacy_time_sd = 7 / 10 * post_chemo_pharmacy_time_mean
 
@@ -183,13 +186,13 @@ class Hospital(object):
              'psa scheduling':(patient_vars.psa_scheduling_time_mean,
                                patient_vars.psa_scheduling_time_sd,['nurse'],'admin',[0.56]),
              '1st blood test':(patient_vars.blood_test_time_mean,
-                               patient_vars.blood_test_time_sd,['nurse'], 'pretreatment',[146.23/30]),
+                               patient_vars.blood_test_time_sd,['nurse'], 'pretreatment',[208.9/30]),
              'time between visit':(patient_vars.between_visits_time_mean,
                                    patient_vars.between_visits_time_sd, None, 'time_between_visits',[]),
              '2nd psa registration':(patient_vars.psa_registration_time_mean,
                                      patient_vars.psa_registration_time_sd, ['nurse'], 'admin',[0.56]),
              '2nd blood test':(patient_vars.blood_test_time_mean,
-                               patient_vars.blood_test_time_sd, ['nurse'], 'pretreatment',[127.12/30]),
+                               patient_vars.blood_test_time_sd, ['nurse'], 'pretreatment',[181.6/30]),
              'dmo 1st consultation': (patient_vars.physician_consultation_1_time_mean,
                                       patient_vars.physician_consultation_1_time_sd, ['dmo'],'admin',[149.8/29]),
              'dmo 2nd consultation':(patient_vars.physician_consultation_2_time_mean,
@@ -203,7 +206,7 @@ class Hospital(object):
              'breast facility':(patient_vars.breast_facility_time_mean,
                                 patient_vars.breast_facility_time_sd, None, 'posttreatment',[179.92]),
              'ATU (AC) blood test':(patient_vars.blood_test_time_mean,
-                                    patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[54.48/15]),
+                                    patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
              'ATU (AC) blood test review':(patient_vars.review_test_results_time_mean,
                                            patient_vars.review_test_results_time_sd, ['dmo'], 'pretreatment',[]),
              'ATU (AC) blood test screening':(patient_vars.blood_test_screening_time_mean,
@@ -214,7 +217,7 @@ class Hospital(object):
                                                        patient_vars.breast_dox_cyclophos_time_sd, ['chair', 'nurse'], 'treatment',[376.93/90]),
              'ATU (AC) Doxorubicin, Cyclophosphamide ADR':(patient_vars.breast_dox_cyclophos_adr_time_mean,
                                                            patient_vars.breast_dox_cyclophos_adr_time_sd,['adr'],
-                                                           'treatment', [4.02/60]),
+                                                           'treatment', [87.22/60]),
              'ATU (AC) post chemo pharmacy':(patient_vars.post_chemo_pharmacy_time_mean,
                                              patient_vars.post_chemo_pharmacy_time_sd,['pharmacist'], 'pharmacy',[]),
              '4th psa registration':(patient_vars.psa_registration_time_mean,
@@ -224,7 +227,7 @@ class Hospital(object):
              'IV Chemo Infusion - ATU (T)':(patient_vars.IV_chemo_infusion_time_mean,
                                             patient_vars.IV_chemo_infusion_time_sd,['chair', 'nurse'], 'treatment',[30.88]),
              'ATU (T) blood test':(patient_vars.blood_test_time_mean,
-                                   patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[54.48/15]),
+                                   patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
              'ATU (T) blood test review': (patient_vars.review_test_results_time_mean,
                                            patient_vars.review_test_results_time_sd, ['dmo'],'pretreatment',[]),
              'ATU (T) blood test screening': (patient_vars.blood_test_screening_time_mean,
@@ -235,7 +238,7 @@ class Hospital(object):
                                    patient_vars.breast_paclitax_time_sd,['chair', 'nurse'], 'treatment',[654/180]),
              'ATU (T) paclitaxel ADR':(patient_vars.breast_paclitax_adr_time_mean,
                                        patient_vars.breast_paclitax_adr_time_sd,
-                                       ['adr'], 'treatment',[12.93/67.8]),
+                                       ['adr'], 'treatment',[79.59/67.8]),
              'ATU (T) post chemo pharmacy': (patient_vars.post_chemo_pharmacy_time_mean,
                                              patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],'pharmacy',[]),
 
@@ -246,7 +249,7 @@ class Hospital(object):
                 'IV start - ATU': (patient_vars.IV_start_time_mean,
                                        patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment', [22.25]),
                 'ATU blood test': (
-                patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[54.48/15]),
+                patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
                 'ATU blood test review': (
                 patient_vars.review_test_results_time_mean, patient_vars.review_test_results_time_sd, ['dmo'],
                 'pretreatment',[]),
@@ -261,7 +264,7 @@ class Hospital(object):
                 ['chair', 'nurse'], 'treatment',[851.68/120]),
                 'ATU Docetaxel ADR': (
                 patient_vars.breast_dox_cyclophos_adr_time_mean, patient_vars.breast_dox_cyclophos_adr_time_sd,
-                ['chair', 'nurse'], 'treatment',[20.61/70]),
+                ['chair', 'nurse'], 'treatment',[107.64/70]),
                 'ATU post chemo pharmacy': (
                 patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],
                 'pharmacy',[]),
@@ -270,8 +273,10 @@ class Hospital(object):
                     ['chair', 'nurse'], 'treatment', [654 / 180]),
                 'ATU Paclitaxel ADR': (
                     patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd,
-                    ['chair', 'nurse'], 'treatment', [12.93 / 67.8]),
-
+                    ['chair', 'nurse'], 'treatment', [79.59 / 67.8]),
+                'ATU capecitabine': (
+                    patient_vars.breast_capecitabine_time_mean, patient_vars.breast_capecitabine_time_sd,
+                    ['chair', 'nurse'], 'treatment', [142.24 / 10]),
             }
 
     def undergo_treatment(self, treatment_desc, p_id):
@@ -287,7 +292,7 @@ class Hospital(object):
 #not sure if we can make this a class
 def Patient(env, id, hosp):
     print('Patient %s arrives at the hospital at %.2f.' % (id, env.now))
-    p_types={1:'Adjuvant',2:'Metastatic: Docetaxel',3:'Metastatic: Paclitaxel'}
+    p_types={1:'Adjuvant',2:'Metastatic: Docetaxel',3:'Metastatic: Paclitaxel',4:'Metastatic: Xeloda'}
     p_type = random.randint(1, 3)
     #regimes = ['1st psa registration time','generic waiting','consultation','psa payment','psa scheduling','1st blood test','IV start - ATU (AC)']
     if(p_type==1):
@@ -313,6 +318,14 @@ def Patient(env, id, hosp):
                                           patient_vars.breast_adj_blood_test2_probability_gen,
                                           patient_vars.breast_adj_blood_test_atu_probability_gen,
                                           patient_vars.breast_paclitaxel_adr_probability_gen
+                                  )
+
+    if(p_type==4):
+        regimes=Regimes.Breast_Metastatic_Regimes('capecitabine',
+                                          patient_vars.breast_adj_blood_test1_probability_gen,
+                                          patient_vars.breast_adj_blood_test2_probability_gen,
+                                          None,
+                                          None
                                   )
 
 
