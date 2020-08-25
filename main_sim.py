@@ -71,7 +71,7 @@ class audit_vars:
 
 
 class patient_vars:
-    between_visits_time_mean = .1 * 24 * 60
+    between_visits_time_mean = 7 * 24 * 60
     between_visits_time_sd = 3 * 24 * 60
     psa_registration_time_mean = 10
     psa_registration_time_sd = 7
@@ -179,7 +179,7 @@ class Hospital(object):
              'consultation':(patient_vars.physician_consultation_1_time_mean,
                              patient_vars.physician_consultation_1_time_sd,['dmo'], 'admin', [149.8/29]),
              'psa payment':(patient_vars.psa_payment_time_sd,
-                            patient_vars.psa_payment_time_sd, +['cashier'], 'admin',[0.56]),
+                            patient_vars.psa_payment_time_sd, ['cashier'], 'admin',[0.56]),
              'psa scheduling':(patient_vars.psa_scheduling_time_mean,
                                patient_vars.psa_scheduling_time_sd,['nurse'],'admin',[0.56]),
              '1st blood test':(patient_vars.blood_test_time_mean,
@@ -239,6 +239,12 @@ class Hospital(object):
              'ATU (T) post chemo pharmacy': (patient_vars.post_chemo_pharmacy_time_mean,
                                              patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],'pharmacy',[]),
 
+                'IV Chemo Infusion - ATU': (patient_vars.IV_chemo_infusion_time_mean,
+                                                patient_vars.IV_chemo_infusion_time_sd, ['chair', 'nurse'], 'treatment',
+                                                [30.88]),
+
+                'IV start - ATU': (patient_vars.IV_start_time_mean,
+                                       patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment', [22.25]),
                 'ATU blood test': (
                 patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[54.48/15]),
                 'ATU blood test review': (
@@ -259,7 +265,7 @@ class Hospital(object):
                 'ATU post chemo pharmacy': (
                 patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],
                 'pharmacy',[]),
-                'ATU Paclitacel': (
+                'ATU Paclitaxel': (
                     patient_vars.breast_paclitax_time_mean, patient_vars.breast_paclitax_time_sd,
                     ['chair', 'nurse'], 'treatment', [654 / 180]),
                 'ATU Paclitaxel ADR': (
