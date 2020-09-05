@@ -431,10 +431,6 @@ def Patient(env, id, hosp):
                         audit_vars.patients_at_consultation -= 1
                         print('Patient %s stops treatment with dmo %.2f.' % (id, env.now))
 
-
-
-
-
             elif('nurse' in dependency):
                 with hosp.nurses.request(priority=p_priority) as nur_request:
                     audit_vars.patients_waiting += 1
