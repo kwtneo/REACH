@@ -16,9 +16,9 @@ num_pharmacists = 1
 
 #p_inter = 2
 SIM_TIME = 30*24*60
-SIM_NAME = 'breast_meta_docetaxel'
+#SIM_NAME = 'breast_meta_docetaxel'
 #SIM_NAME = 'breast_meta_paclitaxel'
-#SIM_NAME = 'breast_meta_xeloda'
+SIM_NAME = 'breast_meta_xeloda'
 #SIM_NAME = ''
 class audit_vars:
     warm_up = 0
@@ -65,6 +65,7 @@ class audit_vars:
 
     cost_unit_time = 0
     cost_unit_time_denom = 0
+    cost_units=[]
 
     patients_waiting_by_priority = [0, 0, 0]
     patient_queuing_results = pd.DataFrame(columns=['priority', 'waiting_time', 'consult_time','treatment_time','cashier_time','pharmacy_time'])
@@ -360,11 +361,13 @@ def Patient(env, id, hosp):
         print(cost_min)
 
         cost_min = cost_min[0] if len(cost_min)>0 else 0
-        audit_vars.cost_unit_time+=cost_min
-        audit_vars.cost_unit_time_denom += 1
+        #audit_vars.cost_unit_time+=cost_min
+        #audit_vars.cost_unit_time_denom += 1
         #print(dependency)
         if (dependency is None):
+            audit_vars.cost_units.append(cost_min)
             yield env.process(hosp.undergo_treatment(item, id))
+            audit_vars.cost_units.remove(cost_min)
         else:
             #if ADR, need to prioritise for 2 ATU nurses, 1 DMO and 1 Pharmacist
             if('ADR' in item or 'adr' in dependency):
@@ -383,6 +386,7 @@ def Patient(env, id, hosp):
                 audit_vars.patients_adr += 1
                 audit_vars.patients_waiting -= 1
                 audit_vars.patients_waiting_by_priority[1 - 1] -= 1
+                audit_vars.cost_units.append(cost_min)
 
                 yield env.process(hosp.undergo_treatment(item, id))
                 audit_vars.patients_at_treatment -= 1
@@ -392,6 +396,7 @@ def Patient(env, id, hosp):
                 hosp.docs.release(adr_dmo_req)
                 hosp.pharmacists.release(adr_pharm_req)
                 print('Patient %s ends ADR treatment: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
+                audit_vars.cost_units.remove(cost_min)
 
             elif ('chair' in dependency):
                 with hosp.chairs.request(priority=p_priority) as chr_request:
@@ -409,10 +414,11 @@ def Patient(env, id, hosp):
 
                             print('Patient %s gets attended by nurse at %.2f.: %s.' % (id, env.now, item))
                             audit_vars.patients_at_treatment += 1
+                            audit_vars.cost_units.append(cost_min)
                             yield env.process(hosp.undergo_treatment(item, id))
                             audit_vars.patients_at_treatment -= 1
                             print('Patient %s stops treatment in chair at %.2f.' % (id, env.now))
-
+                            audit_vars.cost_units.remove(cost_min)
                     else:
                         audit_vars.patients_waiting -= 1
                         audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
@@ -431,11 +437,13 @@ def Patient(env, id, hosp):
 
                             print('Patient %s gets attended by nurse & dmo at %.2f.: %s.' % (id, env.now, item))
                             audit_vars.patients_at_consultation += 1
+                            audit_vars.cost_units.append(cost_min)
                             print('before treatement nurse count:'+str(hosp.nurses.count))
                             yield env.process(hosp.undergo_treatment(item, id))
                             audit_vars.patients_at_consultation -= 1
                             print('Patient %s stops treatment with nurse and dmo %.2f.' % (id, env.now))
                             print('after treatement nurse count:' + str(hosp.nurses.count))
+                            audit_vars.cost_units.remove(cost_min)
                     else:
                         p_time_see_doc = env.now
                         p_queuing_time = env.now - p_time_in
@@ -443,9 +451,11 @@ def Patient(env, id, hosp):
                         audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                         print('Patient %s gets attended by dmo at %.2f.: %s. ' % (id, env.now, item))
                         audit_vars.patients_at_consultation += 1
+                        audit_vars.cost_units.append(cost_min)
                         yield env.process(hosp.undergo_treatment(item, id))
                         audit_vars.patients_at_consultation -= 1
                         print('Patient %s stops treatment with dmo %.2f.' % (id, env.now))
+                        audit_vars.cost_units.remove(cost_min)
 
             elif('nurse' in dependency):
                 with hosp.nurses.request(priority=p_priority) as nur_request:
@@ -457,7 +467,7 @@ def Patient(env, id, hosp):
                     p_queuing_time = env.now - p_time_in
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
-
+                    audit_vars.cost_units.append(cost_min)
                     print('Patient %s gets attended by nurse at %.2f.: %s.' % (id, env.now, item))
                     if (hosp.regime_details[item][3] == 'admin'):
                         audit_vars.patients_at_admin += 1
@@ -471,7 +481,7 @@ def Patient(env, id, hosp):
                     else:
                         audit_vars.patients_at_treatment -= 1
                     print('Patient %s stops %s %.2f.' % (id, 'admin process' if hosp.regime_details[item][3]=='admin' else 'treatment', env.now))
-
+                    audit_vars.cost_units.remove(cost_min)
 
             elif('cashier' in dependency):
                 with hosp.cashiers.request() as cas_request:
@@ -484,12 +494,13 @@ def Patient(env, id, hosp):
 
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
+                    audit_vars.cost_units.append(cost_min)
                     print('Patient %s gets attended by cashier at %.2f.: %s.' % (id, env.now, item))
                     audit_vars.patients_at_cashier += 1
                     yield env.process(hosp.undergo_treatment(item, id))
                     audit_vars.patients_at_cashier -= 1
                     print('Patient %s leaves cashiers station at %.2f.' % (id, env.now))
-
+                    audit_vars.cost_units.remove(cost_min)
 
             elif('pharmacist' in dependency):
                 with hosp.pharmacists.request() as phm_request:
@@ -502,21 +513,21 @@ def Patient(env, id, hosp):
 
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
-
+                    audit_vars.cost_units.append(cost_min)
                     print('Patient %s gets attended by pharmacist at %.2f.: %s.' % (id, env.now, item))
                     audit_vars.patients_at_pharmacy += 1
                     yield env.process(hosp.undergo_treatment(item, id))
                     audit_vars.patients_at_pharmacy -= 1
                     print('Patient %s leaves pharmacy at %.2f.' % (id, env.now))
-
+                    audit_vars.cost_units.remove(cost_min)
 
             #['priority', 'waiting_time', 'consult_time', 'treatment_time', 'cashier_time', 'pharmacy_time']
             _results = [p_priority, p_queuing_time,p_time_see_doc,p_time_see_nurse,p_time_cashier,p_time_pharmacist]
             if env.now >= audit_vars.warm_up:
                 audit_vars.patient_queuing_results.loc[id] = _results
         item_count+=1
-        audit_vars.cost_unit_time -= cost_min
-        audit_vars.cost_unit_time_denom -= 1
+        #audit_vars.cost_unit_time -= cost_min
+        #audit_vars.cost_unit_time_denom -= 1
     del audit_vars.all_patients[id]
 
 def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists):
@@ -580,8 +591,8 @@ def perform_audit(env):
         audit_vars.audit_patients_at_treatment.append(audit_vars.patients_at_treatment)
         audit_vars.audit_patients_between_treatments.append(patients_in_between_treatments)
         audit_vars.audit_patients_adr.append(audit_vars.patients_adr)
-        audit_vars.audit_cost_unit_time.append(audit_vars.cost_unit_time/audit_vars.cost_unit_time_denom if
-                                               audit_vars.cost_unit_time_denom !=0 else 0)
+        audit_vars.audit_cost_unit_time.append(sum(audit_vars.cost_units)/len(audit_vars.cost_units) if
+                                               len(audit_vars.cost_units) !=0 else 0)
 
         print()
         print('####################################### AUDIT Begin: #######################################')
