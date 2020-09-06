@@ -16,10 +16,10 @@ num_pharmacists = 1
 
 #p_inter = 2
 SIM_TIME = 30*24*60
-#SIM_NAME = 'breast_meta_docetaxel'
+SIM_NAME = 'breast_meta_docetaxel'
 #SIM_NAME = 'breast_meta_paclitaxel'
 #SIM_NAME = 'breast_meta_xeloda'
-SIM_NAME = ''
+#SIM_NAME = ''
 class audit_vars:
     warm_up = 0
     # Lists used to store audit results
@@ -296,7 +296,20 @@ class Hospital(object):
 def Patient(env, id, hosp):
     print('Patient %s arrives at the hospital at %.2f.' % (id, env.now))
     p_types={1:'Adjuvant',2:'Metastatic: Docetaxel',3:'Metastatic: Paclitaxel',4:'Metastatic: Xeloda'}
-    p_type = random.randint(1, 4)
+
+    # SIM_NAME = 'breast_meta_docetaxel'
+    # SIM_NAME = 'breast_meta_paclitaxel'
+    # SIM_NAME = 'breast_meta_xeloda'
+
+    if(SIM_NAME=='breast_meta_docetaxel'):
+        p_type=2
+    elif(SIM_NAME=='breast_meta_paclitaxel'):
+        p_type=3
+    elif(SIM_NAME=='breast_meta_xeloda'):
+        p_type=4
+    else:
+        p_type = random.randint(1, 4)
+
     #regimes = ['1st psa registration time','generic waiting','consultation','psa payment','psa scheduling','1st blood test','IV start - ATU (AC)']
     if(p_type==1):
         regimes = Regimes.Breast_Adjuvant_Regimes(
