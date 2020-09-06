@@ -16,7 +16,10 @@ num_pharmacists = 1
 
 #p_inter = 2
 SIM_TIME = 30*24*60
-
+#SIM_NAME = 'breast_meta_docetaxel'
+#SIM_NAME = 'breast_meta_paclitaxel'
+#SIM_NAME = 'breast_meta_xeloda'
+SIM_NAME = ''
 class audit_vars:
     warm_up = 0
     # Lists used to store audit results
@@ -293,7 +296,7 @@ class Hospital(object):
 def Patient(env, id, hosp):
     print('Patient %s arrives at the hospital at %.2f.' % (id, env.now))
     p_types={1:'Adjuvant',2:'Metastatic: Docetaxel',3:'Metastatic: Paclitaxel',4:'Metastatic: Xeloda'}
-    p_type = random.randint(1, 3)
+    p_type = random.randint(1, 4)
     #regimes = ['1st psa registration time','generic waiting','consultation','psa payment','psa scheduling','1st blood test','IV start - ATU (AC)']
     if(p_type==1):
         regimes = Regimes.Breast_Adjuvant_Regimes(
@@ -634,7 +637,7 @@ def build_audit_results():
     audit_vars.results['datetime'] = pd.date_range(start='1/1/2020', periods=len(audit_vars.results), freq=str(audit_vars.audit_interval)+'min')
     audit_vars.results['cost per unit time'] = audit_vars.audit_cost_unit_time
     audit_vars.patient_queuing_results.to_csv('patient results.csv')
-    audit_vars.results.to_csv('operational results.csv')
+    audit_vars.results.to_csv('operational results'+SIM_NAME+'.csv')
 
 # Setup and start the simulation
 random.seed(RANDOM_SEED)  # This helps reproducing the results
