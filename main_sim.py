@@ -71,6 +71,7 @@ class audit_vars:
     patient_queuing_results = pd.DataFrame(columns=['priority', 'waiting_time', 'consult_time','treatment_time','cashier_time','pharmacy_time'])
     global hospital
     all_patients = {}
+    patient_db={}
     results = pd.DataFrame()
 
 
@@ -280,7 +281,7 @@ class Hospital(object):
                     ['chair', 'nurse'], 'treatment', [79.59 / 67.8]),
                 'ATU capecitabine': (
                     patient_vars.breast_capecitabine_time_mean, patient_vars.breast_capecitabine_time_sd,
-                    ['chair', 'nurse'], 'treatment', [142.24 / 10]),
+                    ['nurse'], 'treatment', [142.24 / 10]),
             }
 
     def undergo_treatment(self, treatment_desc, p_id):
@@ -349,6 +350,7 @@ def Patient(env, id, hosp):
     p_priority = random.randint(1, 3)
     audit_vars.patient_count += 1
     audit_vars.all_patients[id] = (regimes,p_priority)
+
     p_time_in = env.now
 
     print('Patient Priority:' + str(p_priority) + ' Treatment Regiment:'+str(p_types[p_type]))
@@ -404,6 +406,8 @@ def Patient(env, id, hosp):
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
                     yield chr_request
                     print('Patient %s gets chair at %.2f.: %s. Waiting for nurse for treatment.' % (id, env.now, item))
+                    #print(audit_vars.all_patients[id])
+                    #exit()
                     if ('nurse' in dependency):
                         with hosp.nurses.request(priority=p_priority) as nurchair_request:
                             yield nurchair_request

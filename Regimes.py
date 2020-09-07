@@ -73,13 +73,14 @@ def Breast_Metastatic_Regimes(main_drug='docetaxel',
         clinic2.append('psa payment')
     clinic2.append('psa scheduling');
 
-    at_cycle = []
-    at_cycle.append('3rd psa registration');
-    at_cycle.append('IV start - ATU')
-    at_cycle.append('IV Chemo Infusion - ATU');
-    at_cycle.append('breast facility')
 
     if(main_drug.lower()=='docetaxel'):
+        at_cycle = []
+        at_cycle.append('3rd psa registration');
+        at_cycle.append('IV start - ATU')
+        at_cycle.append('IV Chemo Infusion - ATU');
+        at_cycle.append('breast facility')
+
         if (next(breast_met_blood_test_atu_probability_gen)):
             at_cycle.append('ATU blood test');
             at_cycle.append('ATU blood test review');
@@ -94,6 +95,12 @@ def Breast_Metastatic_Regimes(main_drug='docetaxel',
                   + clinic2  + time_between + at_cycle + time_between + clinic2
 
     elif(main_drug.lower()=='paclitaxel'):
+        at_cycle = []
+        at_cycle.append('3rd psa registration');
+        at_cycle.append('IV start - ATU')
+        at_cycle.append('IV Chemo Infusion - ATU');
+        at_cycle.append('breast facility')
+
         if (next(breast_met_blood_test_atu_probability_gen)):
             at_cycle.append('ATU blood test');
             at_cycle.append('ATU blood test review');
@@ -108,6 +115,7 @@ def Breast_Metastatic_Regimes(main_drug='docetaxel',
                   + clinic2  + time_between + at_cycle + time_between + clinic2
 
     elif(main_drug.lower()=='capecitabine'):
+        at_cycle = []
         at_cycle.append('ATU capecitabine')
         #at_cycle.append('ATU post chemo pharmacy');
         regimes = clinic1 + time_between + at_cycle + time_between\
