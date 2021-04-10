@@ -140,8 +140,7 @@ class patient_vars:
     breast_adj_blood_test_atu_ac_probability = 0.3
     breast_adj_blood_test_atu_ac_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(1000000))
     breast_adj_blood_test_atu_ac_review_probability = 0.3
-    breast_adj_blood_test_atu_ac_review_probability_gen = (1 if random.random() < 0.3 else 0 for _ in
-                                                                range(100000))
+    breast_adj_blood_test_atu_ac_review_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(100000))
     breast_adj_blood_test_atu_t_probability = 0.3
     breast_adj_blood_test_atu_t_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(1000000))
     breast_adj_blood_test_atu_t_review_probability = 0.3
@@ -159,15 +158,11 @@ class patient_vars:
 
 
     # conditions:
-    conditions_map = {1: 'Breast_Metastatic', 2: 'Breast_Adjuvant', 3: 'GI_Metastatic', 4: 'GI_Adjuvant',
-                           5: 'Lung_Metastatic', 6: 'Lung_Adjuvant'}
+    #conditions_map = {1: 'Breast_Metastatic', 2: 'Breast_Adjuvant', 3: 'GI_Metastatic', 4: 'GI_Adjuvant',5: 'Lung_Metastatic', 6: 'Lung_Adjuvant'}
 
     # treatment specific variables (costs)
-    Breast_adj_ACP = {'ac_cycles': 4, 't_cycles': 12, 'clinic_costs_1': 310.03, 'fu_clinics': 8,
-                           'fu_clinic_cost': 249.19, 'total_atu_cost': 14771.88, 'manpower': 87.9,
-                           'time': 4988.4272, 'overall_mortality_post': .35, 'overall_mortality_pre': .4,
-                           'overall_survivability_post': .863, 'overall_survivability_pre': .842,
-                           'os_time_mths': 6}
+    #Breast_adj_ACP = {'ac_cycles': 4, 't_cycles': 12, 'clinic_costs_1': 310.03, 'fu_clinics': 8,'fu_clinic_cost': 249.19, 'total_atu_cost': 14771.88, 'manpower': 87.9,
+    #                       'time': 4988.4272, 'overall_mortality_post': .35, 'overall_mortality_pre': .4,'overall_survivability_post': .863, 'overall_survivability_pre': .842,'os_time_mths': 6}
 
 
 class Hospital(object):
@@ -180,108 +175,51 @@ class Hospital(object):
         self.pharmacists = simpy.Resource(env, num_pharmacists)
         self.regime_details = \
             {
-             '1st psa registration time':(patient_vars.psa_registration_time_mean,
-                                          patient_vars.psa_registration_time_sd, ['nurse'], 'admin', [0.56]),
-             'generic waiting time':(patient_vars.generic_waiting_time_mean,
-                                     patient_vars.generic_waiting_time_sd, None, 'admin', []),
-             'consultation':(patient_vars.physician_consultation_1_time_mean,
-                             patient_vars.physician_consultation_1_time_sd,['dmo'], 'admin', [149.8/29]),
-             'psa payment':(patient_vars.psa_payment_time_sd,
-                            patient_vars.psa_payment_time_sd, ['cashier'], 'admin',[0.56]),
-             'psa scheduling':(patient_vars.psa_scheduling_time_mean,
-                               patient_vars.psa_scheduling_time_sd,['nurse'],'admin',[0.56]),
-             '1st blood test':(patient_vars.blood_test_time_mean,
-                               patient_vars.blood_test_time_sd,['nurse'], 'pretreatment',[208.9/30]),
-             'time between visit':(patient_vars.between_visits_time_mean,
-                                   patient_vars.between_visits_time_sd, None, 'time_between_visits',[]),
-             '2nd psa registration':(patient_vars.psa_registration_time_mean,
-                                     patient_vars.psa_registration_time_sd, ['nurse'], 'admin',[0.56]),
-             '2nd blood test':(patient_vars.blood_test_time_mean,
-                               patient_vars.blood_test_time_sd, ['nurse'], 'pretreatment',[181.6/30]),
-             'dmo 1st consultation': (patient_vars.physician_consultation_1_time_mean,
-                                      patient_vars.physician_consultation_1_time_sd, ['dmo'],'admin',[149.8/29]),
-             'dmo 2nd consultation':(patient_vars.physician_consultation_2_time_mean,
-                                     patient_vars.physician_consultation_2_time_sd, ['dmo'], 'admin',[float(108.07/11.5)]),
-             '3rd psa registration': (patient_vars.psa_registration_time_mean,
-                                      patient_vars.psa_registration_time_sd, ['nurse'], 'admin',[0.56]),
-             'IV start - ATU (AC)':(patient_vars.IV_start_time_mean,
-                                    patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment',[22.25]),
-             'IV Chemo Infusion - ATU (AC)':(patient_vars.IV_chemo_infusion_time_mean,
-                                             patient_vars.IV_chemo_infusion_time_sd,['chair', 'nurse'], 'treatment',[30.88]),
-             'breast facility':(patient_vars.breast_facility_time_mean,
-                                patient_vars.breast_facility_time_sd, None, 'posttreatment',[179.92]),
-             'ATU (AC) blood test':(patient_vars.blood_test_time_mean,
-                                    patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
-             'ATU (AC) blood test review':(patient_vars.review_test_results_time_mean,
-                                           patient_vars.review_test_results_time_sd, ['dmo'], 'pretreatment',[]),
-             'ATU (AC) blood test screening':(patient_vars.blood_test_screening_time_mean,
-                                              patient_vars.blood_test_screening_time_sd, ['dmo'], 'pretreatment',[1.18]),
-             'ATU (AC) premedication':(patient_vars.breast_atu_premed_time_mean,
-                                       patient_vars.breast_atu_premed_time_sd,['nurse'], 'pretreatment',[]),
-             'ATU (AC) Doxorubicin, Cyclophosphamide':(patient_vars.breast_dox_cyclophos_time_mean,
-                                                       patient_vars.breast_dox_cyclophos_time_sd, ['chair', 'nurse'], 'treatment',[376.93/90]),
-             'ATU (AC) Doxorubicin, Cyclophosphamide ADR':(patient_vars.breast_dox_cyclophos_adr_time_mean,
-                                                           patient_vars.breast_dox_cyclophos_adr_time_sd,['adr'],
-                                                           'treatment', [87.22/60]),
-             'ATU (AC) post chemo pharmacy':(patient_vars.post_chemo_pharmacy_time_mean,
-                                             patient_vars.post_chemo_pharmacy_time_sd,['pharmacist'], 'pharmacy',[]),
-             '4th psa registration':(patient_vars.psa_registration_time_mean,
-                                     patient_vars.psa_registration_time_sd, ['nurse'], 'admin',[0.56]),
-             'IV start - ATU (T)':(patient_vars.IV_start_time_mean,
-                                   patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment',[22.25]),
-             'IV Chemo Infusion - ATU (T)':(patient_vars.IV_chemo_infusion_time_mean,
-                                            patient_vars.IV_chemo_infusion_time_sd,['chair', 'nurse'], 'treatment',[30.88]),
-             'ATU (T) blood test':(patient_vars.blood_test_time_mean,
-                                   patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
-             'ATU (T) blood test review': (patient_vars.review_test_results_time_mean,
-                                           patient_vars.review_test_results_time_sd, ['dmo'],'pretreatment',[]),
-             'ATU (T) blood test screening': (patient_vars.blood_test_screening_time_mean,
-                                              patient_vars.blood_test_screening_time_sd, ['dmo'],'pretreatment',[1.18]),
-             'ATU (T) premedication':(patient_vars.breast_atu_premed_time_mean,
-                                      patient_vars.breast_atu_premed_time_sd,['nurse'], 'pretreatment',[]),
-             'ATU (T) paclitaxel':(patient_vars.breast_paclitax_time_mean,
-                                   patient_vars.breast_paclitax_time_sd,['chair', 'nurse'], 'treatment',[654/180]),
-             'ATU (T) paclitaxel ADR':(patient_vars.breast_paclitax_adr_time_mean,
-                                       patient_vars.breast_paclitax_adr_time_sd,
-                                       ['adr'], 'treatment',[79.59/67.8]),
-             'ATU (T) post chemo pharmacy': (patient_vars.post_chemo_pharmacy_time_mean,
-                                             patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],'pharmacy',[]),
+             '1st psa registration time':(patient_vars.psa_registration_time_mean, patient_vars.psa_registration_time_sd, ['nurse'], 'admin', [0.56]),
+             'generic waiting time':(patient_vars.generic_waiting_time_mean, patient_vars.generic_waiting_time_sd, None, 'admin', []),
+             'consultation':(patient_vars.physician_consultation_1_time_mean, patient_vars.physician_consultation_1_time_sd,['dmo'], 'admin', [149.8/29]),
+             'psa payment':(patient_vars.psa_payment_time_sd, patient_vars.psa_payment_time_sd, ['cashier'], 'admin',[0.56]),
+             'psa scheduling':(patient_vars.psa_scheduling_time_mean, patient_vars.psa_scheduling_time_sd,['nurse'],'admin',[0.56]),
+             '1st blood test':(patient_vars.blood_test_time_mean, patient_vars.blood_test_time_sd,['nurse'], 'pretreatment',[208.9/30]),
+             'time between visit':(patient_vars.between_visits_time_mean, patient_vars.between_visits_time_sd, None, 'time_between_visits',[]),
+             '2nd psa registration':(patient_vars.psa_registration_time_mean, patient_vars.psa_registration_time_sd, ['nurse'], 'admin',[0.56]),
+             '2nd blood test':(patient_vars.blood_test_time_mean, patient_vars.blood_test_time_sd, ['nurse'], 'pretreatment',[181.6/30]),
+             'dmo 1st consultation': (patient_vars.physician_consultation_1_time_mean, patient_vars.physician_consultation_1_time_sd, ['dmo'],'admin',[149.8/29]),
+             'dmo 2nd consultation':(patient_vars.physician_consultation_2_time_mean, patient_vars.physician_consultation_2_time_sd, ['dmo'], 'admin',[float(108.07/11.5)]),
+             '3rd psa registration': (patient_vars.psa_registration_time_mean, patient_vars.psa_registration_time_sd, ['nurse'], 'admin',[0.56]),
+             'IV start - ATU (AC)':(patient_vars.IV_start_time_mean, patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment',[22.25]),
+             'IV Chemo Infusion - ATU (AC)':(patient_vars.IV_chemo_infusion_time_mean, patient_vars.IV_chemo_infusion_time_sd,['chair', 'nurse'], 'treatment',[30.88]),
+             'breast facility':(patient_vars.breast_facility_time_mean, patient_vars.breast_facility_time_sd, None, 'posttreatment',[179.92]),
+             'ATU (AC) blood test':(patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
+             'ATU (AC) blood test review':(patient_vars.review_test_results_time_mean, patient_vars.review_test_results_time_sd, ['dmo'], 'pretreatment',[]),
+             'ATU (AC) blood test screening':(patient_vars.blood_test_screening_time_mean, patient_vars.blood_test_screening_time_sd, ['dmo'], 'pretreatment',[1.18]),
+             'ATU (AC) premedication':(patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd,['nurse'], 'pretreatment',[]),
+             'ATU (AC) Doxorubicin, Cyclophosphamide':(patient_vars.breast_dox_cyclophos_time_mean, patient_vars.breast_dox_cyclophos_time_sd, ['chair', 'nurse'], 'treatment',[376.93/90]),
+             'ATU (AC) Doxorubicin, Cyclophosphamide ADR':(patient_vars.breast_dox_cyclophos_adr_time_mean, patient_vars.breast_dox_cyclophos_adr_time_sd,['adr'], 'treatment', [87.22/60]),
+             'ATU (AC) post chemo pharmacy':(patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd,['pharmacist'], 'pharmacy',[]),
+             '4th psa registration':(patient_vars.psa_registration_time_mean, patient_vars.psa_registration_time_sd, ['nurse'], 'admin',[0.56]),
+             'IV start - ATU (T)':(patient_vars.IV_start_time_mean, patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment',[22.25]),
+             'IV Chemo Infusion - ATU (T)':(patient_vars.IV_chemo_infusion_time_mean, patient_vars.IV_chemo_infusion_time_sd,['chair', 'nurse'], 'treatment',[30.88]),
+             'ATU (T) blood test':(patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
+             'ATU (T) blood test review': (patient_vars.review_test_results_time_mean, patient_vars.review_test_results_time_sd, ['dmo'],'pretreatment',[]),
+             'ATU (T) blood test screening': (patient_vars.blood_test_screening_time_mean, patient_vars.blood_test_screening_time_sd, ['dmo'],'pretreatment',[1.18]),
+             'ATU (T) premedication':(patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd,['nurse'], 'pretreatment',[]),
+             'ATU (T) paclitaxel':(patient_vars.breast_paclitax_time_mean, patient_vars.breast_paclitax_time_sd,['chair', 'nurse'], 'treatment',[654/180]),
+             'ATU (T) paclitaxel ADR':(patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd, ['adr'], 'treatment',[79.59/67.8]),
+             'ATU (T) post chemo pharmacy': (patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],'pharmacy',[]),
 
-                'IV Chemo Infusion - ATU': (patient_vars.IV_chemo_infusion_time_mean,
-                                                patient_vars.IV_chemo_infusion_time_sd, ['chair', 'nurse'], 'treatment',
-                                                [30.88]),
-
-                'IV start - ATU': (patient_vars.IV_start_time_mean,
-                                       patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment', [22.25]),
-                'ATU blood test': (
-                patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
-                'ATU blood test review': (
-                patient_vars.review_test_results_time_mean, patient_vars.review_test_results_time_sd, ['dmo'],
-                'pretreatment',[]),
-                'ATU blood test screening': (
-                patient_vars.blood_test_screening_time_mean, patient_vars.blood_test_screening_time_sd, ['dmo'],
-                'pretreatment',[1.18]),
-                'ATU premedication': (
-                patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd, ['nurse'],
-                'pretreatment',[]),
-                'ATU Docetaxel': (
-                patient_vars.breast_dox_cyclophos_time_mean, patient_vars.breast_dox_cyclophos_time_sd,
-                ['chair', 'nurse'], 'treatment',[851.68/120]),
-                'ATU Docetaxel ADR': (
-                patient_vars.breast_dox_cyclophos_adr_time_mean, patient_vars.breast_dox_cyclophos_adr_time_sd,
-                ['chair', 'nurse'], 'treatment',[107.64/70]),
-                'ATU post chemo pharmacy': (
-                patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],
-                'pharmacy',[]),
-                'ATU Paclitaxel': (
-                    patient_vars.breast_paclitax_time_mean, patient_vars.breast_paclitax_time_sd,
-                    ['chair', 'nurse'], 'treatment', [654 / 180]),
-                'ATU Paclitaxel ADR': (
-                    patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd,
-                    ['chair', 'nurse'], 'treatment', [79.59 / 67.8]),
-                'ATU capecitabine': (
-                    patient_vars.breast_capecitabine_time_mean, patient_vars.breast_capecitabine_time_sd,
-                    ['nurse'], 'treatment', [142.24 / 10]),
+             'IV Chemo Infusion - ATU': (patient_vars.IV_chemo_infusion_time_mean, patient_vars.IV_chemo_infusion_time_sd, ['chair', 'nurse'], 'treatment', [30.88]),
+             'IV start - ATU': (patient_vars.IV_start_time_mean,patient_vars.IV_start_time_sd, ['chair', 'nurse'], 'treatment', [22.25]),
+             'ATU blood test': ( patient_vars.blood_test_time_mean, patient_vars.blood_test_atu_time_sd, ['nurse'], 'pretreatment',[181.6/15]),
+             'ATU blood test review': (patient_vars.review_test_results_time_mean, patient_vars.review_test_results_time_sd, ['dmo'],'pretreatment',[]),
+             'ATU blood test screening': (patient_vars.blood_test_screening_time_mean, patient_vars.blood_test_screening_time_sd, ['dmo'], 'pretreatment',[1.18]),
+             'ATU premedication': (patient_vars.breast_atu_premed_time_mean, patient_vars.breast_atu_premed_time_sd, ['nurse'],'pretreatment',[]),
+             'ATU Docetaxel': (patient_vars.breast_dox_cyclophos_time_mean, patient_vars.breast_dox_cyclophos_time_sd,['chair', 'nurse'], 'treatment',[851.68/120]),
+             'ATU Docetaxel ADR': (patient_vars.breast_dox_cyclophos_adr_time_mean, patient_vars.breast_dox_cyclophos_adr_time_sd,['chair', 'nurse'], 'treatment',[107.64/70]),
+             'ATU post chemo pharmacy': (patient_vars.post_chemo_pharmacy_time_mean, patient_vars.post_chemo_pharmacy_time_sd, ['pharmacist'],'pharmacy',[]),
+             'ATU Paclitaxel': (patient_vars.breast_paclitax_time_mean, patient_vars.breast_paclitax_time_sd,['chair', 'nurse'], 'treatment', [654 / 180]),
+             'ATU Paclitaxel ADR': (patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd,['chair', 'nurse'], 'treatment', [79.59 / 67.8]),
+             'ATU capecitabine': (patient_vars.breast_capecitabine_time_mean, patient_vars.breast_capecitabine_time_sd,['nurse'], 'treatment', [142.24 / 10]),
             }
 
     def undergo_treatment(self, treatment_desc, p_id):
@@ -595,8 +533,7 @@ def perform_audit(env):
         audit_vars.audit_patients_at_treatment.append(audit_vars.patients_at_treatment)
         audit_vars.audit_patients_between_treatments.append(patients_in_between_treatments)
         audit_vars.audit_patients_adr.append(audit_vars.patients_adr)
-        audit_vars.audit_cost_unit_time.append(sum(audit_vars.cost_units)/len(audit_vars.cost_units) if
-                                               len(audit_vars.cost_units) !=0 else 0)
+        audit_vars.audit_cost_unit_time.append(sum(audit_vars.cost_units)/len(audit_vars.cost_units) if len(audit_vars.cost_units) !=0 else 0)
 
         print()
         print('####################################### AUDIT Begin: #######################################')
