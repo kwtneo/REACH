@@ -71,6 +71,8 @@ class audit_vars:
     patient_queuing_results = pd.DataFrame(columns=['priority', 'waiting_time', 'consult_time','treatment_time','cashier_time','pharmacy_time'])
     global hospital
     all_patients = {}
+    all_patients_still_treated = {}
+    all_patients_still_treated ={}
     patient_db={}
     results = pd.DataFrame()
 
@@ -470,6 +472,8 @@ def Patient(env, id, hosp):
         item_count+=1
         #audit_vars.cost_unit_time -= cost_min
         #audit_vars.cost_unit_time_denom -= 1
+    print('removing patient '+str(id))
+    #exit()
     del audit_vars.all_patients[id]
 
 def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists):
