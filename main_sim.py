@@ -21,7 +21,7 @@ SIM_TIME = 30*24*60
 #SIM_NAME = 'breast_meta_xeloda'
 SIM_NAME = ''
 class audit_vars:
-    warm_up = 0
+    warm_up = 15
     # Lists used to store audit results
     audit_time = []
 
@@ -85,8 +85,8 @@ class audit_vars:
 
 
 class patient_vars:
-    between_visits_time_mean = .5 * 24 * 60
-    between_visits_time_sd = .5 * 24 * 60
+    between_visits_time_mean = 1 * 24 * 60
+    between_visits_time_sd = 2 * 24 * 60
     psa_registration_time_mean = 10
     psa_registration_time_sd = 7
     generic_waiting_time_mean = 95.7
@@ -162,7 +162,7 @@ class patient_vars:
     breast_docetaxel_adr_probability = 0.04
     breast_docetaxel_adr_probability_gen = (1 if random.random() <= 0.04 else 0 for _ in range(1000000))
     breast_paclitaxel_adr_probability = 0.027
-    breast_paclitaxel_adr_probability_gen = (1 if random.random() <= 1 else 0 for _ in range(1000000))
+    breast_paclitaxel_adr_probability_gen = (1 if random.random() <= 0.027 else 0 for _ in range(1000000))
 
 
 
@@ -230,6 +230,9 @@ class Hospital(object):
              'ATU Paclitaxel ADR': (patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd,['chair', 'nurse'], 'treatment', [79.59 / 67.8]),
              'ATU capecitabine': (patient_vars.breast_capecitabine_time_mean, patient_vars.breast_capecitabine_time_sd,['nurse'], 'treatment', [142.24 / 10]),
             }
+
+    def ovr_nite(self, p_id, hours=0):
+        yield self.env.timeout(hours * 60)
 
     def undergo_treatment(self, treatment_desc, p_id):
         print('hospital class: undergoing treatment / process call:'+ str(treatment_desc))
@@ -322,6 +325,12 @@ def Patient(env, id, hosp, ptype=None):
     p_queuing_time=0; p_time_see_doc=0; p_time_see_nurse=0; p_time_cashier=0; p_time_pharmacist=0
     item_count = 0
     for item in regimes:
+        time_of_day = (env.now % (24*60)) / 60
+        print('time of day = '+str(time_of_day) +' env_now='+str(env.now))
+        if(time_of_day>=17 and time_of_day<=23):
+            yield env.process(hosp.ovr_nite(id, (23-time_of_day+8)))
+        if(time_of_day>=0 and time_of_day<=8):
+            yield env.process(hosp.ovr_nite(id, (8-time_of_day)))
         dependency = hosp.regime_details[item][2]
         cost_min = hosp.regime_details[item][4]
         print('Patient Priority:' + str(p_priority) + ' Treatment Regiment:' + str(p_types[p_type])+' '+str(hosp.regime_details[item][0])+ ' dependency:'+str(dependency)+' ')
@@ -394,9 +403,13 @@ def Patient(env, id, hosp, ptype=None):
                             audit_vars.patients_at_treatment -= 1
                             print('Patient %s stops treatment in chair at %.2f.' % (id, env.now))
                             audit_vars.cost_units.remove(cost_min)
-                    else:
-                        audit_vars.patients_waiting -= 1
-                        audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
+                        hosp.chairs.release(chr_request)
+                        hosp.nurses.release(nurchair_request)
+                    hosp.chairs.release(chr_request)
+                    #else:
+                    #    audit_vars.patients_waiting -= 1
+                    #    audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
+
             elif('dmo' in dependency):
                 print('dmo dependency!')
                 with hosp.docs.request(priority=p_priority) as doc_request:
@@ -420,6 +433,7 @@ def Patient(env, id, hosp, ptype=None):
                             print('Patient %s stops treatment with nurse and dmo %.2f.' % (id, env.now))
                             print('after treatment nurse count:' + str(hosp.nurses.count))
                             audit_vars.cost_units.remove(cost_min)
+                            hosp.nurses.release(nurdmo_request)
                     else:
                         p_time_see_doc = env.now
                         p_queuing_time = env.now - p_time_in
@@ -432,6 +446,7 @@ def Patient(env, id, hosp, ptype=None):
                         audit_vars.patients_at_consultation -= 1
                         print('Patient %s stops treatment with dmo %.2f.' % (id, env.now))
                         audit_vars.cost_units.remove(cost_min)
+                    hosp.docs.release(doc_request)
 
             elif('nurse' in dependency):
                 print('nurse dependency!')
@@ -450,16 +465,16 @@ def Patient(env, id, hosp, ptype=None):
                         audit_vars.patients_at_admin += 1
                     else:
                         audit_vars.patients_at_treatment += 1
-                    print('before treatment nurse count:' + str(hosp.nurses.count))
+
                     yield env.process(hosp.undergo_treatment(item, id))
-                    print('after treatment nurse count:' + str(hosp.nurses.count))
+
                     if(hosp.regime_details[item][3] == 'admin'):
                         audit_vars.patients_at_admin -= 1
                     else:
                         audit_vars.patients_at_treatment -= 1
                     print('Patient %s stops %s %.2f.' % (id, 'admin process' if hosp.regime_details[item][3]=='admin' else 'treatment', env.now))
                     audit_vars.cost_units.remove(cost_min)
-
+                    hosp.nurses.release(nur_request)
             elif('cashier' in dependency):
                 with hosp.cashiers.request() as cas_request:
                     audit_vars.patients_waiting += 1
@@ -478,7 +493,7 @@ def Patient(env, id, hosp, ptype=None):
                     audit_vars.patients_at_cashier -= 1
                     print('Patient %s leaves cashiers station at %.2f.' % (id, env.now))
                     audit_vars.cost_units.remove(cost_min)
-
+                    hosp.cashiers.release(cas_request)
             elif('pharmacist' in dependency):
                 with hosp.pharmacists.request() as phm_request:
                     audit_vars.patients_waiting += 1
@@ -497,7 +512,7 @@ def Patient(env, id, hosp, ptype=None):
                     audit_vars.patients_at_pharmacy -= 1
                     print('Patient %s leaves pharmacy at %.2f.' % (id, env.now))
                     audit_vars.cost_units.remove(cost_min)
-
+                    hosp.pharmacists.release(phm_request)
             #['priority', 'waiting_time', 'consult_time', 'treatment_time', 'cashier_time', 'pharmacy_time']
             _results = [p_priority, p_queuing_time,p_time_see_doc,p_time_see_nurse,p_time_cashier,p_time_pharmacist]
             if env.now >= audit_vars.warm_up:
@@ -542,7 +557,12 @@ def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, 
             env.process(Patient(env, i, audit_vars.hospital, None))
 
     else:
-        schedule = [(60 * 15, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1)]
+        schedule = [
+                    (60 * 26, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 3),(60 * 1, 4),(60 * 1, 1),
+                    (60 * 1, 2),(60 * 1, 1),(60 * 1, 1),(60 * 1, 3),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 1),
+                    (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),(60 * 1, 1), (60 * 1, 4),
+                    (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),(60 * 1, 3), (60 * 1, 1),
+                    ]
         '''
             (60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 3),(60 * 1, 4),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),
                     (60 * 15, 2),(60 * 1, 1),(60 * 1, 1),(60 * 1, 3),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 1),
