@@ -4,20 +4,26 @@ def Breast_Adjuvant_Regimes(breast_adj_blood_test1_probability_gen,
                             breast_adj_blood_test_atu_ac_probability_gen,
                             breast_dox_cyclophos_adr_probability_gen,
                             breast_adj_blood_test_atu_t_probability_gen,
-                            breast_paclitax_adr_probability_gen,
+                            breast_paclitaxel_adr_probability_gen,
                             ):
+    adrs=False
     regimes = []
     time_between = []
     time_between.append('time between visit')
     clinic1=['1st psa registration time','generic waiting time','dmo 1st consultation','psa payment','psa scheduling',]
+    clinic1 = ['1st psa registration time', 'dmo 1st consultation', 'psa payment',
+               'psa scheduling', ]
     if (next(breast_adj_blood_test1_probability_gen)):
         clinic1.append('1st blood test');
 
     #regimes.append('time between visit');
     clinic2=[]
     clinic2.append('2nd psa registration')
+    #if (next(breast_adj_blood_test2_probability_gen)):
+    #    clinic2.append('2nd blood test');clinic2.append('generic waiting time');clinic2.append('dmo 2nd consultation');clinic2.append('psa payment')
     if (next(breast_adj_blood_test2_probability_gen)):
-        clinic2.append('2nd blood test');clinic2.append('generic waiting time');clinic2.append('dmo 2nd consultation');clinic2.append('psa payment')
+        clinic2.append('2nd blood test');clinic2.append('dmo 2nd consultation');clinic2.append('psa payment')
+
     clinic2.append('psa scheduling');
 
     ac_cycle=[]
@@ -38,8 +44,13 @@ def Breast_Adjuvant_Regimes(breast_adj_blood_test1_probability_gen,
     if (next(breast_adj_blood_test_atu_t_probability_gen)):
         t_cycle.append('ATU (T) blood test');t_cycle.append('ATU (T) blood test review');t_cycle.append('ATU (T) blood test screening')
     t_cycle.append('ATU (T) premedication');t_cycle.append('ATU (T) paclitaxel')
-    if(next(breast_paclitax_adr_probability_gen)):
+    #print(breast_paclitax_adr_probability_gen)
+    if(next(breast_paclitaxel_adr_probability_gen)):
         t_cycle.append('ATU (T) paclitaxel ADR')
+        adrs=True
+        print('Patient will have ADR reaction')
+    else:
+        print('Patient will NOT have ADR reaction')
     t_cycle.append('ATU (T) post chemo pharmacy')
 
     regimes = clinic1 + time_between + ac_cycle + time_between + clinic2 + time_between + ac_cycle\
@@ -47,8 +58,6 @@ def Breast_Adjuvant_Regimes(breast_adj_blood_test1_probability_gen,
               + ac_cycle + time_between + clinic2 + time_between + t_cycle + time_between + clinic2 \
               + time_between + t_cycle + time_between + clinic2 + time_between + t_cycle + time_between\
               + clinic2 + time_between + t_cycle + time_between + clinic2
-
-
 
     return regimes
 
@@ -62,15 +71,21 @@ def Breast_Metastatic_Regimes(main_drug='docetaxel',
     regimes = []
     time_between = []
     time_between.append('time between visit')
-    clinic1=['1st psa registration time','generic waiting time','dmo 1st consultation','psa payment','psa scheduling',]
+    #clinic1=['1st psa registration time','generic waiting time','dmo 1st consultation','psa payment','psa scheduling',]
+    clinic1 = ['1st psa registration time', 'dmo 1st consultation', 'psa payment',
+               'psa scheduling', ]
     if (next(breast_met_blood_test1_probability_gen)):
         clinic1.append('1st blood test');
 
     clinic2=[]
     clinic2.append('2nd psa registration')
+    #if (next(breast_met_blood_test2_probability_gen)):
+    #    clinic2.append('2nd blood test');clinic2.append('generic waiting time');clinic2.append('dmo 2nd consultation');
+    #    clinic2.append('psa payment')
     if (next(breast_met_blood_test2_probability_gen)):
-        clinic2.append('2nd blood test');clinic2.append('generic waiting time');clinic2.append('dmo 2nd consultation');
+        clinic2.append('2nd blood test');clinic2.append('dmo 2nd consultation');
         clinic2.append('psa payment')
+
     clinic2.append('psa scheduling');
 
 
@@ -113,6 +128,7 @@ def Breast_Metastatic_Regimes(main_drug='docetaxel',
         at_cycle.append('ATU post chemo pharmacy');
         regimes = clinic1 + time_between + at_cycle + time_between\
                   + clinic2  + time_between + at_cycle + time_between + clinic2
+
 
     elif(main_drug.lower()=='capecitabine'):
         at_cycle = []

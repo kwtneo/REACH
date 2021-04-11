@@ -18,13 +18,15 @@ num_pharmacists = 1
 SIM_TIME = 30*24*60
 #SIM_NAME = 'breast_meta_docetaxel'
 #SIM_NAME = 'breast_meta_paclitaxel'
-SIM_NAME = 'breast_meta_xeloda'
-#SIM_NAME = ''
+#SIM_NAME = 'breast_meta_xeloda'
+SIM_NAME = ''
 class audit_vars:
     warm_up = 0
     # Lists used to store audit results
     audit_time = []
+
     audit_patients_in_ATU = []
+    audit_patients_uncomplete = []
     audit_patients_waiting = []
     audit_patients_waiting_p1 = []
     audit_patients_waiting_p2 = []
@@ -37,7 +39,8 @@ class audit_vars:
     audit_patients_at_consultation = []
     audit_patients_at_treatment = []
     audit_patients_at_admin = []
-    audit_patients_adr = []
+    audit_total_patients_adr = []
+    audit_curr_patients_adr = []
 
     audit_resources_used = []
     audit_nurses_occupied = []
@@ -45,8 +48,9 @@ class audit_vars:
     audit_chairs_occupied = []
     audit_pharmacists_occupied = []
     audit_cashiers_occupied = []
+    audit_all_patients_treated = []
 
-    audit_interval = 5
+    audit_interval = 30
     audit_cost_unit_time=[]
     #visualization data stores
     #resource utilization graphs
@@ -55,7 +59,8 @@ class audit_vars:
     patient_count = 0
     chair_usage = []
     patients_waiting = 0
-    patients_between_treatment_cycles = 0
+    patients_between_treatments = {}
+    patients_between_treatment_cycles = {}
     patients_at_cashier = 0
     patients_at_pharmacy = 0
     patients_at_consultation = 0
@@ -71,15 +76,17 @@ class audit_vars:
     patient_queuing_results = pd.DataFrame(columns=['priority', 'waiting_time', 'consult_time','treatment_time','cashier_time','pharmacy_time'])
     global hospital
     all_patients = {}
-    all_patients_still_treated = {}
-    all_patients_still_treated ={}
+    all_patients_adr = {}
+    all_patients_treated = {}
+    all_patients_ever = {}
+    #all_patients_being_treated = {}
     patient_db={}
     results = pd.DataFrame()
 
 
 class patient_vars:
-    between_visits_time_mean = 7 * 24 * 60
-    between_visits_time_sd = 3 * 24 * 60
+    between_visits_time_mean = .5 * 24 * 60
+    between_visits_time_sd = .5 * 24 * 60
     psa_registration_time_mean = 10
     psa_registration_time_sd = 7
     generic_waiting_time_mean = 95.7
@@ -134,28 +141,28 @@ class patient_vars:
 
     # Set up probability based generators
     breast_dox_cyclophos_adr_probability = 0.009
-    breast_dox_cyclophos_adr_probability_gen = (1 if random.random() < 0.009 else 0 for _ in range(1000000))
+    breast_dox_cyclophos_adr_probability_gen = (1 if random.random() <= 0.009 else 0 for _ in range(1000000))
     breast_adj_blood_test1_probability = 0.7
-    breast_adj_blood_test1_probability_gen = (1 if random.random() < 0.7 else 0 for _ in range(1000000))
+    breast_adj_blood_test1_probability_gen = (1 if random.random() <= 0.7 else 0 for _ in range(1000000))
     breast_adj_blood_test2_probability = 0.7
-    breast_adj_blood_test2_probability_gen = (1 if random.random() < 0.7 else 0 for _ in range(1000000))
+    breast_adj_blood_test2_probability_gen = (1 if random.random() <= 0.7 else 0 for _ in range(1000000))
     breast_adj_blood_test_atu_ac_probability = 0.3
-    breast_adj_blood_test_atu_ac_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(1000000))
+    breast_adj_blood_test_atu_ac_probability_gen = (1 if random.random() <= 0.3 else 0 for _ in range(1000000))
     breast_adj_blood_test_atu_ac_review_probability = 0.3
-    breast_adj_blood_test_atu_ac_review_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(100000))
+    breast_adj_blood_test_atu_ac_review_probability_gen = (1 if random.random() <= 0.3 else 0 for _ in range(100000))
     breast_adj_blood_test_atu_t_probability = 0.3
-    breast_adj_blood_test_atu_t_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(1000000))
+    breast_adj_blood_test_atu_t_probability_gen = (1 if random.random() <= 0.3 else 0 for _ in range(1000000))
     breast_adj_blood_test_atu_t_review_probability = 0.3
-    breast_adj_blood_test_atu_t_review_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(100000))
-    breast_paclitax_adr_probability = 0.027
-    breast_paclitax_adr_probability_gen = (1 if random.random() < 0.027 else 0 for _ in range(1000000))
+    breast_adj_blood_test_atu_t_review_probability_gen = (1 if random.random() <= 0.3 else 0 for _ in range(100000))
+    #breast_paclitax_adr_probability = 0.027
+    #breast_paclitax_adr_probability_gen = (1 if random.random() <= 0.027 else 0 for _ in range(1000000))
 
     breast_adj_blood_test_atu_probability = 0.3
-    breast_adj_blood_test_atu_probability_gen = (1 if random.random() < 0.3 else 0 for _ in range(1000000))
+    breast_adj_blood_test_atu_probability_gen = (1 if random.random() <= 0.3 else 0 for _ in range(1000000))
     breast_docetaxel_adr_probability = 0.04
-    breast_docetaxel_adr_probability_gen = (1 if random.random() < 0.04 else 0 for _ in range(1000000))
+    breast_docetaxel_adr_probability_gen = (1 if random.random() <= 0.04 else 0 for _ in range(1000000))
     breast_paclitaxel_adr_probability = 0.027
-    breast_paclitaxel_adr_probability_gen = (1 if random.random() < 0.027 else 0 for _ in range(1000000))
+    breast_paclitaxel_adr_probability_gen = (1 if random.random() <= 1 else 0 for _ in range(1000000))
 
 
 
@@ -225,18 +232,31 @@ class Hospital(object):
             }
 
     def undergo_treatment(self, treatment_desc, p_id):
+        print('hospital class: undergoing treatment / process call:'+ str(treatment_desc))
         if ('generic waiting' in treatment_desc):
-            audit_vars.patients_between_treatment_cycles += 1
-            print('Patient %s is in between treatments at %.2f.' % (p_id, env.now))
+            #audit_vars.patients_between_treatments += 1
+            audit_vars.patients_between_treatments[p_id] = 1
+            print('Patient %s is waiting for the next step at %.2f.' % (p_id, env.now))
+        if ('time between visit' in treatment_desc):
+            audit_vars.patients_between_treatment_cycles[p_id] = 1
+            print('Patient %s is waiting for next visit at %.2f.' % (p_id, env.now))
+            print()
 
         yield self.env.timeout(self.regime_details[treatment_desc][0])
+
+
         if ('generic waiting' in treatment_desc):
-            audit_vars.patients_between_treatment_cycles -= 1
+            #audit_vars.patients_between_treatments -= 1
+            del audit_vars.patients_between_treatments[p_id]
             print('Patient %s has finished generic wait at %.2f.' % (p_id, env.now))
+        if ('time between visit' in treatment_desc):
+            del audit_vars.patients_between_treatment_cycles[p_id]
+            print('Patient %s has finished wait and will commence next visit at %.2f.' % (p_id, env.now))
+
 
 #not sure if we can make this a class
-def Patient(env, id, hosp):
-    print('Patient %s arrives at the hospital at %.2f.' % (id, env.now))
+def Patient(env, id, hosp, ptype=None):
+    print('Patient %s %s arrives at the hospital at %.2f.' % (id, ptype, env.now))
     p_types={1:'Adjuvant',2:'Metastatic: Docetaxel',3:'Metastatic: Paclitaxel',4:'Metastatic: Xeloda'}
 
     # SIM_NAME = 'breast_meta_docetaxel'
@@ -250,7 +270,10 @@ def Patient(env, id, hosp):
     elif(SIM_NAME=='breast_meta_xeloda'):
         p_type=4
     else:
-        p_type = random.randint(1, 4)
+        if(ptype is None):
+            p_type = random.randint(1, 4)
+        else:
+            p_type = ptype
 
     #regimes = ['1st psa registration time','generic waiting','consultation','psa payment','psa scheduling','1st blood test','IV start - ATU (AC)']
     if(p_type==1):
@@ -260,7 +283,7 @@ def Patient(env, id, hosp):
         patient_vars.breast_adj_blood_test_atu_ac_probability_gen,
         patient_vars.breast_dox_cyclophos_adr_probability_gen,
         patient_vars.breast_adj_blood_test_atu_t_probability_gen,
-        patient_vars.breast_paclitax_adr_probability_gen
+        patient_vars.breast_paclitaxel_adr_probability_gen
         )
     if(p_type==2):
         regimes=Regimes.Breast_Metastatic_Regimes('docetaxel',
@@ -290,18 +313,18 @@ def Patient(env, id, hosp):
     p_priority = random.randint(1, 3)
     audit_vars.patient_count += 1
     audit_vars.all_patients[id] = (regimes,p_priority)
+    audit_vars.all_patients_ever[id] = (regimes, p_priority)
+    #audit_vars.all_patients_being_treated = audit_vars.all_patients_being_treated + 1
 
     p_time_in = env.now
 
-    print('Patient Priority:' + str(p_priority) + ' Treatment Regiment:'+str(p_types[p_type]))
+
     p_queuing_time=0; p_time_see_doc=0; p_time_see_nurse=0; p_time_cashier=0; p_time_pharmacist=0
     item_count = 0
     for item in regimes:
         dependency = hosp.regime_details[item][2]
         cost_min = hosp.regime_details[item][4]
-        print(item)
-        print(cost_min)
-
+        print('Patient Priority:' + str(p_priority) + ' Treatment Regiment:' + str(p_types[p_type])+' '+str(hosp.regime_details[item][0])+ ' dependency:'+str(dependency)+' ')
         cost_min = cost_min[0] if len(cost_min)>0 else 0
         #audit_vars.cost_unit_time+=cost_min
         #audit_vars.cost_unit_time_denom += 1
@@ -315,32 +338,40 @@ def Patient(env, id, hosp):
             if('ADR' in item or 'adr' in dependency):
                 audit_vars.patients_waiting += 1
                 audit_vars.patients_waiting_by_priority[1 - 1] += 1
+                audit_vars.patients_adr += 1
+                audit_vars.all_patients_adr[id] = 1
 
-                n1_adr_req=hosp.nurses.request(priority=1)
+                n1_adr_req = hosp.nurses.request(priority=1)
                 n2_adr_req = hosp.nurses.request(priority=1)
+                ch_adr_req = hosp.chairs.request(priority=1)
                 adr_dmo_req = hosp.docs.request(priority=1)
                 adr_pharm_req = hosp.pharmacists.request()
-                yield n1_adr_req & n2_adr_req & adr_dmo_req & adr_pharm_req
+
+                yield n1_adr_req & n2_adr_req & adr_dmo_req & adr_pharm_req & ch_adr_req
+
                 adr_treatment = env.now
                 p_queuing_time = env.now - p_time_in
                 print('Patient %s gets attended due to ADR: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
                 audit_vars.patients_at_treatment += 1
-                audit_vars.patients_adr += 1
+
                 audit_vars.patients_waiting -= 1
                 audit_vars.patients_waiting_by_priority[1 - 1] -= 1
                 audit_vars.cost_units.append(cost_min)
 
                 yield env.process(hosp.undergo_treatment(item, id))
+
                 audit_vars.patients_at_treatment -= 1
-                #audit_vars.patients_adr -= 1
+                audit_vars.patients_adr -= 1
                 hosp.nurses.release(n1_adr_req)
                 hosp.nurses.release(n2_adr_req)
                 hosp.docs.release(adr_dmo_req)
                 hosp.pharmacists.release(adr_pharm_req)
+                hosp.chairs.release(ch_adr_req)
                 print('Patient %s ends ADR treatment: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
                 audit_vars.cost_units.remove(cost_min)
 
             elif ('chair' in dependency):
+                print('chair dependency!')
                 with hosp.chairs.request(priority=p_priority) as chr_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
@@ -367,6 +398,7 @@ def Patient(env, id, hosp):
                         audit_vars.patients_waiting -= 1
                         audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
             elif('dmo' in dependency):
+                print('dmo dependency!')
                 with hosp.docs.request(priority=p_priority) as doc_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
@@ -382,11 +414,11 @@ def Patient(env, id, hosp):
                             print('Patient %s gets attended by nurse & dmo at %.2f.: %s.' % (id, env.now, item))
                             audit_vars.patients_at_consultation += 1
                             audit_vars.cost_units.append(cost_min)
-                            print('before treatement nurse count:'+str(hosp.nurses.count))
+                            print('before treatment nurse count:'+str(hosp.nurses.count))
                             yield env.process(hosp.undergo_treatment(item, id))
                             audit_vars.patients_at_consultation -= 1
                             print('Patient %s stops treatment with nurse and dmo %.2f.' % (id, env.now))
-                            print('after treatement nurse count:' + str(hosp.nurses.count))
+                            print('after treatment nurse count:' + str(hosp.nurses.count))
                             audit_vars.cost_units.remove(cost_min)
                     else:
                         p_time_see_doc = env.now
@@ -402,6 +434,7 @@ def Patient(env, id, hosp):
                         audit_vars.cost_units.remove(cost_min)
 
             elif('nurse' in dependency):
+                print('nurse dependency!')
                 with hosp.nurses.request(priority=p_priority) as nur_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
@@ -417,9 +450,9 @@ def Patient(env, id, hosp):
                         audit_vars.patients_at_admin += 1
                     else:
                         audit_vars.patients_at_treatment += 1
-                    print('before treatement nurse count:' + str(hosp.nurses.count))
+                    print('before treatment nurse count:' + str(hosp.nurses.count))
                     yield env.process(hosp.undergo_treatment(item, id))
-                    print('after treatement nurse count:' + str(hosp.nurses.count))
+                    print('after treatment nurse count:' + str(hosp.nurses.count))
                     if(hosp.regime_details[item][3] == 'admin'):
                         audit_vars.patients_at_admin -= 1
                     else:
@@ -473,13 +506,26 @@ def Patient(env, id, hosp):
         #audit_vars.cost_unit_time -= cost_min
         #audit_vars.cost_unit_time_denom -= 1
     print('removing patient '+str(id))
-    #exit()
+    print(audit_vars.all_patients)
     del audit_vars.all_patients[id]
+    try:
+        del audit_vars.patients_between_treatment_cycles[id]
+        del audit_vars.patients_between_treatments[id]
+    except:
+        pass
+    #del audit_vars.patients_waiting
 
-def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists):
+
+    audit_vars.all_patients_treated[id] = (regimes,p_priority)
+    #audit_vars.all_patients_being_treated = audit_vars.all_patients_being_treated - 1
+    print('patient ' + str(id) + ' removed')
+
+
+
+def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode):
     # Create the hospital
     audit_vars.hospital = Hospital(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists)
-    t_inter =24*60/4
+    t_inter = audit_vars.audit_interval
     i = 0
     # Create initial
 
@@ -487,10 +533,64 @@ def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists):
     #    env.process(Patient(env, i, audit_vars.hospital))
     # Create more cars while the simulation is running
 
-    while True:
-        yield env.timeout(random.randint(t_inter - 24*60/4, t_inter + 24*60/4))
-        i += 1
-        env.process(Patient(env, i, audit_vars.hospital))
+
+
+    if(sim_mode != 'schedule'):
+        while True:
+            yield env.timeout(random.randint(t_inter, t_inter + 60*1))
+            i += 1
+            env.process(Patient(env, i, audit_vars.hospital, None))
+
+    else:
+        schedule = [(60 * 15, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1)]
+        '''
+            (60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 3),(60 * 1, 4),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),
+                    (60 * 15, 2),(60 * 1, 1),(60 * 1, 1),(60 * 1, 3),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 1),
+                    (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4),(60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
+                    (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1),(60 * 1, 2), (60 * 1, 1), (60 * 1, 4),
+                    (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1),(60 * 1, 1), (60 * 1, 3), (60 * 1, 1),
+
+            (60 * 15, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
+            (60 * 15, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 2), (60 * 1, 1),
+            (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 1), (60 * 1, 1),
+            (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),
+            (60 * 1, 1), (60 * 1, 4),
+            (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
+            (60 * 1, 3), (60 * 1, 1),
+            (60 * 15, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
+            (60 * 15, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 2), (60 * 1, 1),
+            (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 1), (60 * 1, 1),
+            (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),
+            (60 * 1, 1), (60 * 1, 4),
+            (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
+            (60 * 1, 3), (60 * 1, 1),
+            (60 * 15, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
+            (60 * 15, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 2), (60 * 1, 1),
+            (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 1), (60 * 1, 1),
+            (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),
+            (60 * 1, 1), (60 * 1, 4),
+            (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
+            (60 * 1, 3), (60 * 1, 1),
+
+        ]
+        '''
+                    #(60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),(60 * 1, 1), (60 * 1, 1),(60 * 1, 1), (60 * 1, 1),(60 * 1, 1),
+                    #(60 * 1, 1), (60 * 1, 1),(60 * 3, 1), (60 * 2, 1),(60 * 2, 1),(60 * 3, 1), (60 * 2, 1), (60 * 3, 1), (60 * 1, 1),
+                    #(60 * 2, 1), (60 * 3, 1), (60 * 1, 1), (60 * 5, 1)]
+        for pi in schedule:
+            intv, ttype = pi
+            yield env.timeout(intv)
+            i += 1
+            env.process(Patient(env, i, audit_vars.hospital, ttype))
 
 def perform_audit(env):
     """Called at each audit interval. Records simulation time, total
@@ -505,13 +605,15 @@ def perform_audit(env):
         audit_vars.audit_time.append(env.now)
         # Record patients waiting by referencing global variables
         audit_vars.audit_patients_waiting.append(audit_vars.patients_waiting)
-        #audit_vars.audit_patients_between_treatment_cycles.append(audit_vars.patients_between_treatment_cycles)
         audit_vars.audit_patients_waiting_p1.append(audit_vars.patients_waiting_by_priority[0])
         audit_vars.audit_patients_waiting_p2.append(audit_vars.patients_waiting_by_priority[1])
         audit_vars.audit_patients_waiting_p3.append(audit_vars.patients_waiting_by_priority[2])
         # Record patients waiting by asking length of dictionary of all
         # patients (another way of doing things)
-        audit_vars.audit_patients_in_ATU.append(len(audit_vars.all_patients))
+        audit_vars.audit_patients_uncomplete.append(len(audit_vars.all_patients))
+        audit_vars.audit_all_patients_treated.append(len(audit_vars.all_patients_treated))
+        #audit_vars.audit_patients_treated.append(len(audit_vars.all_patients))
+        audit_vars.audit_patients_in_ATU.append(len(audit_vars.all_patients)-len(audit_vars.patients_between_treatment_cycles))
         # Record resources occupied
         audit_vars.audit_resources_used.append(audit_vars.hospital.chairs.count+
                                                audit_vars.hospital.nurses.count+
@@ -519,9 +621,10 @@ def perform_audit(env):
                                                audit_vars.hospital.cashiers.count+
                                                audit_vars.hospital.pharmacists.count)
 
-        patients_in_between_treatments=len(audit_vars.all_patients) - audit_vars.patients_at_treatment - audit_vars.patients_at_consultation - \
-                                       audit_vars.patients_at_pharmacy - audit_vars.patients_at_cashier - \
-                                       audit_vars.patients_between_treatment_cycles - audit_vars.patients_at_admin - audit_vars.patients_waiting
+        #patients_in_between_treatments=audit_vars.audit_patients_between_treatments
+            #len(audit_vars.all_patients) - audit_vars.patients_at_treatment - audit_vars.patients_at_consultation - \
+            #                           audit_vars.patients_at_pharmacy - audit_vars.patients_at_cashier - \
+            #                           audit_vars.patients_between_treatments - audit_vars.patients_at_admin - audit_vars.patients_waiting
 
         audit_vars.audit_nurses_occupied.append(audit_vars.hospital.nurses.count)
         audit_vars.audit_chairs_occupied.append(audit_vars.hospital.chairs.count)
@@ -530,23 +633,31 @@ def perform_audit(env):
         audit_vars.audit_cashiers_occupied.append(audit_vars.hospital.cashiers.count)
 
         audit_vars.audit_patients_at_admin.append(audit_vars.patients_at_admin)
-        audit_vars.audit_patients_between_treatment_cycles.append(audit_vars.patients_between_treatment_cycles)
+        audit_vars.audit_patients_between_treatment_cycles.append(len(audit_vars.patients_between_treatment_cycles))
+        audit_vars.audit_patients_between_treatments.append(len(audit_vars.patients_between_treatments))
+
+
         audit_vars.audit_patients_at_cashier.append(audit_vars.patients_at_cashier)
         audit_vars.audit_patients_at_pharmacy.append(audit_vars.patients_at_pharmacy)
         audit_vars.audit_patients_at_consultation.append(audit_vars.patients_at_consultation)
         audit_vars.audit_patients_at_treatment.append(audit_vars.patients_at_treatment)
-        audit_vars.audit_patients_between_treatments.append(patients_in_between_treatments)
-        audit_vars.audit_patients_adr.append(audit_vars.patients_adr)
+
+        audit_vars.audit_total_patients_adr.append(len(audit_vars.all_patients_adr))
+        audit_vars.audit_curr_patients_adr.append(audit_vars.patients_adr)
         audit_vars.audit_cost_unit_time.append(sum(audit_vars.cost_units)/len(audit_vars.cost_units) if len(audit_vars.cost_units) !=0 else 0)
 
         print()
         print('####################################### AUDIT Begin: #######################################')
         print('PATIENTS WAITING:')
         print(audit_vars.patients_waiting)
+        print(audit_vars.audit_patients_waiting)
         print('PATIENTS AT ADMIN:')
         print(audit_vars.patients_at_admin)
         print('PATIENTS BETWEEN TREATMENTS CYCLES:')
-        print(audit_vars.patients_between_treatment_cycles)
+        print(len(audit_vars.patients_between_treatment_cycles))
+        print('PATIENTS BETWEEN TREATMENTS:')
+        print(len(audit_vars.patients_between_treatments))
+
         print('PATIENTS AT CASHIER:')
         print(audit_vars.patients_at_cashier)
         print('PATIENTS AT PHARMACY:')
@@ -561,6 +672,12 @@ def perform_audit(env):
 
         print('PATIENTS DB:')
         print(len(audit_vars.all_patients))
+        print('PATIENTS DB Completed treatment:')
+        print(len(audit_vars.all_patients_treated))
+        print('PATIENTS DB EVER:')
+        print(len(audit_vars.all_patients_ever))
+        print('PATIENTS ADR EVER:')
+        print(len(audit_vars.all_patients_adr))
         print('Resource Utilization:')
         print(audit_vars.audit_resources_used)
         print('nurse utilization:'+str(num_nurses))
@@ -575,8 +692,14 @@ def build_audit_results():
     DataFrame."""
 
     audit_vars.results['time'] = audit_vars.audit_time
-    audit_vars.results['patients in ATU'] = audit_vars.audit_patients_in_ATU
+    audit_vars.results['uncompleted patients'] = audit_vars.audit_patients_uncomplete
+        #[a_i - b_i for a_i, b_i in zip(audit_vars.audit_patients_in_ATU, audit_vars.audit_patients_between_treatment_cycles)]
+    #audit_vars.results['all patients treated'] = audit_vars.all_patients_treated
+    #audit_vars.results['current # of patients'] = audit_vars.all_patients
+    #audit_vars.results['current # of patients'] = audit_vars.all_patients
     audit_vars.results['all patients waiting'] = audit_vars.audit_patients_waiting
+    audit_vars.results['all patients treated'] = audit_vars.audit_all_patients_treated
+    #audit_vars.results['all patients waiting'] = audit_vars.audit_patients_waiting
     audit_vars.results['patients at admin'] = audit_vars.audit_patients_at_admin
     audit_vars.results['patients between treatment cycles'] = audit_vars.audit_patients_between_treatment_cycles
     audit_vars.results['patients at consultation'] = audit_vars.audit_patients_at_consultation
@@ -584,7 +707,8 @@ def build_audit_results():
     audit_vars.results['patients at pharmacy'] = audit_vars.audit_patients_at_pharmacy
     audit_vars.results['patients in between treatments'] = audit_vars.audit_patients_between_treatments
     audit_vars.results['patients at cashier'] = audit_vars.audit_patients_at_cashier
-    audit_vars.results['patients ADR'] = audit_vars.audit_patients_adr
+    audit_vars.results['patients total ADR'] = audit_vars.audit_total_patients_adr
+    audit_vars.results['patients curr ADR'] = audit_vars.audit_curr_patients_adr
 
     audit_vars.results['priority 1 patients waiting'] = audit_vars.audit_patients_waiting_p1
     audit_vars.results['priority 2 patients waiting'] = audit_vars.audit_patients_waiting_p2
@@ -612,8 +736,10 @@ def build_audit_results():
 random.seed(RANDOM_SEED)  # This helps reproducing the results
 
 # Create an environment and start the setup process
+
+sim_mode = 'schedule'
 env = simpy.Environment()
-env.process(setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists))
+env.process(setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode))
 env.process(perform_audit(env))
 # Execute!
 env.run(until=SIM_TIME)
