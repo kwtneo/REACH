@@ -428,7 +428,7 @@ def Patient(env, id, hosp, ptype=None):
                 print('nurses:'+str(audit_vars.hospital.nurses.count))
                 print('chairs:'+str(audit_vars.hospital.chairs.count))
                 print('docs:'+str(audit_vars.hospital.docs.count))
-                exit()
+                #exit()
                 audit_vars.cost_units.remove(cost_min)
 
 
