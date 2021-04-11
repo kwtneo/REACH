@@ -164,7 +164,7 @@ class patient_vars:
     breast_paclitaxel_adr_probability = 0.027
     breast_paclitaxel_adr_probability_gen = (1 if random.random() <= 0.027 else 0 for _ in range(1000000))
 
-
+    dscheduler = {}
 
     # conditions:
     #conditions_map = {1: 'Breast_Metastatic', 2: 'Breast_Adjuvant', 3: 'GI_Metastatic', 4: 'GI_Adjuvant',5: 'Lung_Metastatic', 6: 'Lung_Adjuvant'}
@@ -177,9 +177,13 @@ class patient_vars:
 class Hospital(object):
     def __init__(self, env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists):
         self.env = env
-        self.docs = simpy.PriorityResource(env, num_docs)
-        self.nurses = simpy.PriorityResource(env, num_nurses)
-        self.chairs = simpy.PriorityResource(env, num_chairs)
+        #self.docs = simpy.PriorityResource(env, num_docs)
+        #self.nurses = simpy.PriorityResource(env, num_nurses)
+        #self.chairs = simpy.PriorityResource(env, num_chairs)
+        self.docs = simpy.PreemptiveResource(env, num_docs)
+        self.nurses = simpy.PreemptiveResource(env, num_nurses)
+        self.chairs = simpy.PreemptiveResource(env, num_chairs)
+
         self.cashiers = simpy.Resource(env, num_cashiers)
         self.pharmacists = simpy.Resource(env, num_pharmacists)
         self.regime_details = \
@@ -230,6 +234,9 @@ class Hospital(object):
              'ATU Paclitaxel ADR': (patient_vars.breast_paclitax_adr_time_mean, patient_vars.breast_paclitax_adr_time_sd,['chair', 'nurse'], 'treatment', [79.59 / 67.8]),
              'ATU capecitabine': (patient_vars.breast_capecitabine_time_mean, patient_vars.breast_capecitabine_time_sd,['nurse'], 'treatment', [142.24 / 10]),
             }
+
+    def adr_yield(self, p_id, mins=0):
+        yield self.env.timeout(mins)
 
     def ovr_nite(self, p_id, hours=0):
         yield self.env.timeout(hours * 60)
@@ -325,13 +332,14 @@ def Patient(env, id, hosp, ptype=None):
     p_queuing_time=0; p_time_see_doc=0; p_time_see_nurse=0; p_time_cashier=0; p_time_pharmacist=0
     item_count = 0
     for item in regimes:
+        dependency = hosp.regime_details[item][2]
         time_of_day = (env.now % (24*60)) / 60
         print('time of day = '+str(time_of_day) +' env_now='+str(env.now))
-        if(time_of_day>=17 and time_of_day<=23):
-            yield env.process(hosp.ovr_nite(id, (23-time_of_day+8)))
-        if(time_of_day>=0 and time_of_day<=8):
-            yield env.process(hosp.ovr_nite(id, (8-time_of_day)))
-        dependency = hosp.regime_details[item][2]
+        if(time_of_day>=17 and time_of_day<=23 and (dependency is None or 'ADR' not in item and 'adr' not in dependency)):
+            yield env.process(hosp.ovr_nite(id, (23-time_of_day+8+random.randint(0,8))))
+        if(time_of_day>=0 and time_of_day<=8 and (dependency is None or 'ADR' not in item and 'adr' not in dependency)):
+            yield env.process(hosp.ovr_nite(id, (8-time_of_day+random.randint(0,8))))
+
         cost_min = hosp.regime_details[item][4]
         print('Patient Priority:' + str(p_priority) + ' Treatment Regiment:' + str(p_types[p_type])+' '+str(hosp.regime_details[item][0])+ ' dependency:'+str(dependency)+' ')
         cost_min = cost_min[0] if len(cost_min)>0 else 0
@@ -350,12 +358,52 @@ def Patient(env, id, hosp, ptype=None):
                 audit_vars.patients_adr += 1
                 audit_vars.all_patients_adr[id] = 1
 
-                n1_adr_req = hosp.nurses.request(priority=1)
-                n2_adr_req = hosp.nurses.request(priority=1)
-                ch_adr_req = hosp.chairs.request(priority=1)
-                adr_dmo_req = hosp.docs.request(priority=1)
+                n1_adr_req = hosp.nurses.request(preempt=True)
+                n2_adr_req = hosp.nurses.request(preempt=True)
+                ch_adr_req = hosp.chairs.request(preempt=True)
+                adr_dmo_req = hosp.docs.request(preempt=True)
                 adr_pharm_req = hosp.pharmacists.request()
 
+                '''
+                print('ADR!!!!!')
+                with hosp.chairs.request(priority=1) as adr_chr_req:
+                    yield adr_chr_req
+                    with hosp.docs.request(priority=1) as adr_doc_req:
+                        yield adr_doc_req
+                        with hosp.nurses.request(priority=1) as adr_nur_req:
+                            yield adr_nur_req
+                            with hosp.pharmacists.request() as adr_phm_req:
+                                yield adr_phm_req
+                                adr_treatment = env.now
+                                p_queuing_time = env.now - p_time_in
+                                print('Patient %s gets attended due to ADR: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
+                                audit_vars.patients_at_treatment += 1
+
+                                audit_vars.patients_waiting -= 1
+                                audit_vars.patients_waiting_by_priority[1 - 1] -= 1
+                                audit_vars.cost_units.append(cost_min)
+
+                                yield env.process(hosp.undergo_treatment(item, id))
+
+                                audit_vars.patients_at_treatment -= 1
+                                audit_vars.patients_adr -= 1
+
+                                hosp.chairs.release(adr_chr_req)
+                                hosp.nurses.release(adr_nur_req)
+                                hosp.docs.release(adr_doc_req)
+                                hosp.pharmacists.release(adr_phm_req)
+                                print('Patient %s ends ADR treatment: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
+                                print('nurses:'+str(audit_vars.hospital.nurses.count))
+                                print('chairs:'+str(audit_vars.hospital.chairs.count))
+                                print('docs:'+str(audit_vars.hospital.docs.count))
+                                exit()
+                                audit_vars.cost_units.remove(cost_min)
+
+                '''
+                print('ADR!!!!!')
+                print('nurses:'+str(audit_vars.hospital.nurses.count))
+                print('chairs:'+str(audit_vars.hospital.chairs.count))
+                print('docs:'+str(audit_vars.hospital.docs.count))
                 yield n1_adr_req & n2_adr_req & adr_dmo_req & adr_pharm_req & ch_adr_req
 
                 adr_treatment = env.now
@@ -377,11 +425,16 @@ def Patient(env, id, hosp, ptype=None):
                 hosp.pharmacists.release(adr_pharm_req)
                 hosp.chairs.release(ch_adr_req)
                 print('Patient %s ends ADR treatment: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
+                print('nurses:'+str(audit_vars.hospital.nurses.count))
+                print('chairs:'+str(audit_vars.hospital.chairs.count))
+                print('docs:'+str(audit_vars.hospital.docs.count))
+                exit()
                 audit_vars.cost_units.remove(cost_min)
+
 
             elif ('chair' in dependency):
                 print('chair dependency!')
-                with hosp.chairs.request(priority=p_priority) as chr_request:
+                with hosp.chairs.request(priority=p_priority, preempt=False) as chr_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
                     yield chr_request
@@ -389,7 +442,7 @@ def Patient(env, id, hosp, ptype=None):
                     #print(audit_vars.all_patients[id])
                     #exit()
                     if ('nurse' in dependency):
-                        with hosp.nurses.request(priority=p_priority) as nurchair_request:
+                        with hosp.nurses.request(priority=p_priority, preempt=False) as nurchair_request:
                             yield nurchair_request
                             p_time_chair_treatment = env.now
                             p_queuing_time = env.now - p_time_in
@@ -399,7 +452,11 @@ def Patient(env, id, hosp, ptype=None):
                             print('Patient %s gets attended by nurse at %.2f.: %s.' % (id, env.now, item))
                             audit_vars.patients_at_treatment += 1
                             audit_vars.cost_units.append(cost_min)
-                            yield env.process(hosp.undergo_treatment(item, id))
+                            try:
+                                yield env.process(hosp.undergo_treatment(item, id))
+                            except simpy.Interrupt:
+                                yield env.process(hosp.adr_yield(id, 20))
+
                             audit_vars.patients_at_treatment -= 1
                             print('Patient %s stops treatment in chair at %.2f.' % (id, env.now))
                             audit_vars.cost_units.remove(cost_min)
@@ -412,12 +469,12 @@ def Patient(env, id, hosp, ptype=None):
 
             elif('dmo' in dependency):
                 print('dmo dependency!')
-                with hosp.docs.request(priority=p_priority) as doc_request:
+                with hosp.docs.request(priority=p_priority, preempt=False) as doc_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
                     yield doc_request
                     if ('nurse' in dependency):
-                        with hosp.nurses.request(priority=p_priority) as nurdmo_request:
+                        with hosp.nurses.request(priority=p_priority, preempt=False) as nurdmo_request:
                             yield nurdmo_request
                             p_time_see_doc = env.now
                             p_queuing_time = env.now - p_time_in
@@ -428,7 +485,11 @@ def Patient(env, id, hosp, ptype=None):
                             audit_vars.patients_at_consultation += 1
                             audit_vars.cost_units.append(cost_min)
                             print('before treatment nurse count:'+str(hosp.nurses.count))
-                            yield env.process(hosp.undergo_treatment(item, id))
+                            try:
+                                yield env.process(hosp.undergo_treatment(item, id))
+                            except simpy.Interrupt:
+                                yield env.process(hosp.adr_yield(id, 20))
+
                             audit_vars.patients_at_consultation -= 1
                             print('Patient %s stops treatment with nurse and dmo %.2f.' % (id, env.now))
                             print('after treatment nurse count:' + str(hosp.nurses.count))
@@ -442,7 +503,11 @@ def Patient(env, id, hosp, ptype=None):
                         print('Patient %s gets attended by dmo at %.2f.: %s. ' % (id, env.now, item))
                         audit_vars.patients_at_consultation += 1
                         audit_vars.cost_units.append(cost_min)
-                        yield env.process(hosp.undergo_treatment(item, id))
+                        try:
+                            yield env.process(hosp.undergo_treatment(item, id))
+                        except simpy.Interrupt:
+                            yield env.process(hosp.adr_yield(id, 20))
+
                         audit_vars.patients_at_consultation -= 1
                         print('Patient %s stops treatment with dmo %.2f.' % (id, env.now))
                         audit_vars.cost_units.remove(cost_min)
@@ -450,7 +515,7 @@ def Patient(env, id, hosp, ptype=None):
 
             elif('nurse' in dependency):
                 print('nurse dependency!')
-                with hosp.nurses.request(priority=p_priority) as nur_request:
+                with hosp.nurses.request(priority=p_priority, preempt=False) as nur_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
 
@@ -465,8 +530,10 @@ def Patient(env, id, hosp, ptype=None):
                         audit_vars.patients_at_admin += 1
                     else:
                         audit_vars.patients_at_treatment += 1
-
-                    yield env.process(hosp.undergo_treatment(item, id))
+                    try:
+                        yield env.process(hosp.undergo_treatment(item, id))
+                    except simpy.Interrupt:
+                        yield env.process(hosp.adr_yield(id, 20))
 
                     if(hosp.regime_details[item][3] == 'admin'):
                         audit_vars.patients_at_admin -= 1
@@ -666,6 +733,7 @@ def perform_audit(env):
         audit_vars.audit_curr_patients_adr.append(audit_vars.patients_adr)
         audit_vars.audit_cost_unit_time.append(sum(audit_vars.cost_units)/len(audit_vars.cost_units) if len(audit_vars.cost_units) !=0 else 0)
 
+        '''
         print()
         print('####################################### AUDIT Begin: #######################################')
         print('PATIENTS WAITING:')
@@ -704,6 +772,10 @@ def perform_audit(env):
         print(audit_vars.hospital.nurses.count/num_nurses)
         print('######################################## AUDIT End: ########################################')
         print()
+        '''
+        print('PATIENTS ADR EVER:')
+        print(len(audit_vars.all_patients_adr))
+
         # Trigger next audit after interval
         yield env.timeout(audit_vars.audit_interval)
 
