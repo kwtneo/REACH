@@ -1,5 +1,4 @@
 """
-
 """
 import random
 import simpy
@@ -7,82 +6,72 @@ import pandas as pd
 import Regimes
 
 RANDOM_SEED = random.randint(1,10000)
-num_chairs = 2
-num_nurses = 2
-num_docs = 1
-num_cashiers = 1
-num_pharmacists = 1
-
-
 #p_inter = 2
 SIM_TIME = 30*24*60
-#SIM_NAME = 'breast_meta_docetaxel'
-#SIM_NAME = 'breast_meta_paclitaxel'
-#SIM_NAME = 'breast_meta_xeloda'
-SIM_NAME = ''
-class audit_vars:
-    warm_up = 15
-    # Lists used to store audit results
-    audit_time = []
 
-    audit_patients_in_ATU = []
-    audit_patients_uncomplete = []
-    audit_patients_waiting = []
-    audit_patients_waiting_p1 = []
-    audit_patients_waiting_p2 = []
-    audit_patients_waiting_p3 = []
-    audit_patients_between_treatments = []
+class Audit_vars:
+    def __init__(self, vars_id=1):
+        self.id = vars_id
+        self.warm_up = 15
+        self.audit_time = []
+        self.audit_all_patients_ever = []
+        self.audit_patients_in_ATU = []
+        self.audit_patients_uncomplete = []
+        self.audit_patients_waiting = []
+        self.audit_patients_waiting_p1 = []
+        self.audit_patients_waiting_p2 = []
+        self.audit_patients_waiting_p3 = []
+        self.audit_patients_between_treatments = []
 
-    audit_patients_between_treatment_cycles = []
-    audit_patients_at_cashier = []
-    audit_patients_at_pharmacy = []
-    audit_patients_at_consultation = []
-    audit_patients_at_treatment = []
-    audit_patients_at_admin = []
-    audit_total_patients_adr = []
-    audit_curr_patients_adr = []
+        self.audit_patients_between_treatment_cycles = []
+        self.audit_patients_at_cashier = []
+        self.audit_patients_at_pharmacy = []
+        self.audit_patients_at_consultation = []
+        self.audit_patients_at_treatment = []
+        self.audit_patients_at_admin = []
+        self.audit_total_patients_adr = []
+        self.audit_curr_patients_adr = []
 
-    audit_resources_used = []
-    audit_nurses_occupied = []
-    audit_docs_occupied = []
-    audit_chairs_occupied = []
-    audit_pharmacists_occupied = []
-    audit_cashiers_occupied = []
-    audit_all_patients_treated = []
+        self.audit_resources_used = []
+        self.audit_nurses_occupied = []
+        self.audit_docs_occupied = []
+        self.audit_chairs_occupied = []
+        self.audit_pharmacists_occupied = []
+        self.audit_cashiers_occupied = []
+        self.audit_all_patients_treated = []
 
-    audit_interval = 30
-    audit_cost_unit_time=[]
-    #visualization data stores
-    #resource utilization graphs
+        self.audit_interval = 60
+        self.audit_cost_unit_time=[]
+        #visualization data stores
+        #resource utilization graphs
 
-    # Set up counter for number fo patients entering simulation
-    patient_count = 0
-    chair_usage = []
-    patients_waiting = 0
-    patients_between_treatments = {}
-    patients_between_treatment_cycles = {}
-    patients_at_cashier = 0
-    patients_at_pharmacy = 0
-    patients_at_consultation = 0
-    patients_at_treatment = 0
-    patients_at_admin = 0
-    patients_adr = 0
+        # Set up counter for number fo patients entering simulation
+        self.patient_count = 0
+        self.chair_usage = []
+        self.patients_waiting = 0
+        self.patients_between_treatments = {}
+        self.patients_between_treatment_cycles = {}
+        self.patients_at_cashier = 0
+        self.patients_at_pharmacy = 0
+        self.patients_at_consultation = 0
+        self.patients_at_treatment = 0
+        self.patients_at_admin = 0
+        self.patients_adr = 0
 
-    cost_unit_time = 0
-    cost_unit_time_denom = 0
-    cost_units=[]
-
-    patients_waiting_by_priority = [0, 0, 0]
-    patient_queuing_results = pd.DataFrame(columns=['priority', 'waiting_time', 'consult_time','treatment_time','cashier_time','pharmacy_time'])
-    global hospital
-    all_patients = {}
-    all_patients_adr = {}
-    all_patients_treated = {}
-    all_patients_ever = {}
-    #all_patients_being_treated = {}
-    patient_db={}
-    results = pd.DataFrame()
-
+        self.cost_unit_time = 0
+        self.cost_unit_time_denom = 0
+        self.cost_units=[]
+        self.patients_waiting_by_priority = [0, 0, 0]
+        self.patient_queuing_results = pd.DataFrame(columns=['priority', 'waiting_time', 'consult_time','treatment_time','cashier_time','pharmacy_time'])
+        self.hospital = None
+        self.all_patients = {}
+        self.all_patients_adr = {}
+        self.all_patients_treated = {}
+        self.all_patients_ritems_ever = {}
+        self.all_unique_patients_ever = {}
+        #self.#all_patients_being_treated = {}
+        self.patient_db={}
+        self.results = pd.DataFrame()
 
 class patient_vars:
     between_visits_time_mean = 1 * 24 * 60
@@ -166,20 +155,10 @@ class patient_vars:
 
     dscheduler = {}
 
-    # conditions:
-    #conditions_map = {1: 'Breast_Metastatic', 2: 'Breast_Adjuvant', 3: 'GI_Metastatic', 4: 'GI_Adjuvant',5: 'Lung_Metastatic', 6: 'Lung_Adjuvant'}
-
-    # treatment specific variables (costs)
-    #Breast_adj_ACP = {'ac_cycles': 4, 't_cycles': 12, 'clinic_costs_1': 310.03, 'fu_clinics': 8,'fu_clinic_cost': 249.19, 'total_atu_cost': 14771.88, 'manpower': 87.9,
-    #                       'time': 4988.4272, 'overall_mortality_post': .35, 'overall_mortality_pre': .4,'overall_survivability_post': .863, 'overall_survivability_pre': .842,'os_time_mths': 6}
-
 
 class Hospital(object):
     def __init__(self, env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists):
         self.env = env
-        #self.docs = simpy.PriorityResource(env, num_docs)
-        #self.nurses = simpy.PriorityResource(env, num_nurses)
-        #self.chairs = simpy.PriorityResource(env, num_chairs)
         self.docs = simpy.PreemptiveResource(env, num_docs)
         self.nurses = simpy.PreemptiveResource(env, num_nurses)
         self.chairs = simpy.PreemptiveResource(env, num_chairs)
@@ -241,7 +220,7 @@ class Hospital(object):
     def ovr_nite(self, p_id, hours=0):
         yield self.env.timeout(hours * 60)
 
-    def undergo_treatment(self, treatment_desc, p_id):
+    def undergo_treatment(self, treatment_desc, p_id, audit_vars):
         print('hospital class: undergoing treatment / process call:'+ str(treatment_desc))
         if ('generic waiting' in treatment_desc):
             #audit_vars.patients_between_treatments += 1
@@ -265,10 +244,10 @@ class Hospital(object):
 
 
 #not sure if we can make this a class
-def Patient(env, id, hosp, ptype=None):
-    print('Patient %s %s arrives at the hospital at %.2f.' % (id, ptype, env.now))
+def Patient(env, id, hosp, ptype, audit_vars):
+    print('Patient %s type:%s arrives at the hospital at %.2f.' % (id, ptype, env.now))
     p_types={1:'Adjuvant',2:'Metastatic: Docetaxel',3:'Metastatic: Paclitaxel',4:'Metastatic: Xeloda'}
-
+    p_adr = False
     # SIM_NAME = 'breast_meta_docetaxel'
     # SIM_NAME = 'breast_meta_paclitaxel'
     # SIM_NAME = 'breast_meta_xeloda'
@@ -323,19 +302,21 @@ def Patient(env, id, hosp, ptype=None):
     p_priority = random.randint(1, 3)
     audit_vars.patient_count += 1
     audit_vars.all_patients[id] = (regimes,p_priority)
-    audit_vars.all_patients_ever[id] = (regimes, p_priority)
+
     #audit_vars.all_patients_being_treated = audit_vars.all_patients_being_treated + 1
 
     p_time_in = env.now
-
-
     p_queuing_time=0; p_time_see_doc=0; p_time_see_nurse=0; p_time_cashier=0; p_time_pharmacist=0
+    audit_vars.all_unique_patients_ever[id] = ([id, p_types[p_type], p_priority, p_adr])
     item_count = 0
     for item in regimes:
+        audit_vars.patients_between_treatments[id] = 1
         dependency = hosp.regime_details[item][2]
         time_of_day = (env.now % (24*60)) / 60
         print('time of day = '+str(time_of_day) +' env_now='+str(env.now))
+        #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
         if(time_of_day>=17 and time_of_day<=23 and (dependency is None or 'ADR' not in item and 'adr' not in dependency)):
+            #audit_vars.patients_between_treatment_cycles[id] = 1
             yield env.process(hosp.ovr_nite(id, (23-time_of_day+8+random.randint(0,8))))
         if(time_of_day>=0 and time_of_day<=8 and (dependency is None or 'ADR' not in item and 'adr' not in dependency)):
             yield env.process(hosp.ovr_nite(id, (8-time_of_day+random.randint(0,8))))
@@ -345,11 +326,19 @@ def Patient(env, id, hosp, ptype=None):
         cost_min = cost_min[0] if len(cost_min)>0 else 0
         #audit_vars.cost_unit_time+=cost_min
         #audit_vars.cost_unit_time_denom += 1
-        #print(dependency)
+        del audit_vars.patients_between_treatments[id]
+
         if (dependency is None):
             audit_vars.cost_units.append(cost_min)
-            yield env.process(hosp.undergo_treatment(item, id))
+            p_time_treatment = env.now
+            #audit_vars.patients_at_treatment += 1
+            yield env.process(hosp.undergo_treatment(item, id, audit_vars))
+            #audit_vars.patients_at_treatment -= 1
+            p_queuing_time = env.now - p_time_treatment
+            #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+            audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
             audit_vars.cost_units.remove(cost_min)
+
         else:
             #if ADR, need to prioritise for 2 ATU nurses, 1 DMO and 1 Pharmacist
             if('ADR' in item or 'adr' in dependency):
@@ -357,6 +346,7 @@ def Patient(env, id, hosp, ptype=None):
                 audit_vars.patients_waiting_by_priority[1 - 1] += 1
                 audit_vars.patients_adr += 1
                 audit_vars.all_patients_adr[id] = 1
+                p_adr=True
 
                 n1_adr_req = hosp.nurses.request(preempt=True)
                 n2_adr_req = hosp.nurses.request(preempt=True)
@@ -364,50 +354,13 @@ def Patient(env, id, hosp, ptype=None):
                 adr_dmo_req = hosp.docs.request(preempt=True)
                 adr_pharm_req = hosp.pharmacists.request()
 
-                '''
                 print('ADR!!!!!')
-                with hosp.chairs.request(priority=1) as adr_chr_req:
-                    yield adr_chr_req
-                    with hosp.docs.request(priority=1) as adr_doc_req:
-                        yield adr_doc_req
-                        with hosp.nurses.request(priority=1) as adr_nur_req:
-                            yield adr_nur_req
-                            with hosp.pharmacists.request() as adr_phm_req:
-                                yield adr_phm_req
-                                adr_treatment = env.now
-                                p_queuing_time = env.now - p_time_in
-                                print('Patient %s gets attended due to ADR: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
-                                audit_vars.patients_at_treatment += 1
-
-                                audit_vars.patients_waiting -= 1
-                                audit_vars.patients_waiting_by_priority[1 - 1] -= 1
-                                audit_vars.cost_units.append(cost_min)
-
-                                yield env.process(hosp.undergo_treatment(item, id))
-
-                                audit_vars.patients_at_treatment -= 1
-                                audit_vars.patients_adr -= 1
-
-                                hosp.chairs.release(adr_chr_req)
-                                hosp.nurses.release(adr_nur_req)
-                                hosp.docs.release(adr_doc_req)
-                                hosp.pharmacists.release(adr_phm_req)
-                                print('Patient %s ends ADR treatment: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
-                                print('nurses:'+str(audit_vars.hospital.nurses.count))
-                                print('chairs:'+str(audit_vars.hospital.chairs.count))
-                                print('docs:'+str(audit_vars.hospital.docs.count))
-                                exit()
-                                audit_vars.cost_units.remove(cost_min)
-
-                '''
-                print('ADR!!!!!')
-                print('nurses:'+str(audit_vars.hospital.nurses.count))
-                print('chairs:'+str(audit_vars.hospital.chairs.count))
-                print('docs:'+str(audit_vars.hospital.docs.count))
                 yield n1_adr_req & n2_adr_req & adr_dmo_req & adr_pharm_req & ch_adr_req
 
                 adr_treatment = env.now
-                p_queuing_time = env.now - p_time_in
+                p_queuing_time = env.now - adr_treatment
+                #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                audit_vars.all_patients_ritems_ever[(id, item)]=([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                 print('Patient %s gets attended due to ADR: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
                 audit_vars.patients_at_treatment += 1
 
@@ -415,7 +368,7 @@ def Patient(env, id, hosp, ptype=None):
                 audit_vars.patients_waiting_by_priority[1 - 1] -= 1
                 audit_vars.cost_units.append(cost_min)
 
-                yield env.process(hosp.undergo_treatment(item, id))
+                yield env.process(hosp.undergo_treatment(item, id, audit_vars))
 
                 audit_vars.patients_at_treatment -= 1
                 audit_vars.patients_adr -= 1
@@ -425,9 +378,6 @@ def Patient(env, id, hosp, ptype=None):
                 hosp.pharmacists.release(adr_pharm_req)
                 hosp.chairs.release(ch_adr_req)
                 print('Patient %s ends ADR treatment: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
-                print('nurses:'+str(audit_vars.hospital.nurses.count))
-                print('chairs:'+str(audit_vars.hospital.chairs.count))
-                print('docs:'+str(audit_vars.hospital.docs.count))
                 #exit()
                 audit_vars.cost_units.remove(cost_min)
 
@@ -437,6 +387,7 @@ def Patient(env, id, hosp, ptype=None):
                 with hosp.chairs.request(priority=p_priority, preempt=False) as chr_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
+                    p_time_chair_treatment = env.now
                     yield chr_request
                     print('Patient %s gets chair at %.2f.: %s. Waiting for nurse for treatment.' % (id, env.now, item))
                     #print(audit_vars.all_patients[id])
@@ -444,8 +395,9 @@ def Patient(env, id, hosp, ptype=None):
                     if ('nurse' in dependency):
                         with hosp.nurses.request(priority=p_priority, preempt=False) as nurchair_request:
                             yield nurchair_request
-                            p_time_chair_treatment = env.now
-                            p_queuing_time = env.now - p_time_in
+                            p_queuing_time = env.now - p_time_chair_treatment
+                            #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                            audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                             audit_vars.patients_waiting -= 1
                             audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
 
@@ -453,7 +405,7 @@ def Patient(env, id, hosp, ptype=None):
                             audit_vars.patients_at_treatment += 1
                             audit_vars.cost_units.append(cost_min)
                             try:
-                                yield env.process(hosp.undergo_treatment(item, id))
+                                yield env.process(hosp.undergo_treatment(item, id, audit_vars))
                             except simpy.Interrupt:
                                 yield env.process(hosp.adr_yield(id, 20))
 
@@ -472,12 +424,15 @@ def Patient(env, id, hosp, ptype=None):
                 with hosp.docs.request(priority=p_priority, preempt=False) as doc_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
+                    p_time_see_doc = env.now
                     yield doc_request
                     if ('nurse' in dependency):
                         with hosp.nurses.request(priority=p_priority, preempt=False) as nurdmo_request:
+                            p_time_see_docnurse = env.now
                             yield nurdmo_request
-                            p_time_see_doc = env.now
-                            p_queuing_time = env.now - p_time_in
+                            p_queuing_time = env.now - p_time_see_docnurse
+                            #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                            audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                             audit_vars.patients_waiting -= 1
                             audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
 
@@ -486,7 +441,7 @@ def Patient(env, id, hosp, ptype=None):
                             audit_vars.cost_units.append(cost_min)
                             print('before treatment nurse count:'+str(hosp.nurses.count))
                             try:
-                                yield env.process(hosp.undergo_treatment(item, id))
+                                yield env.process(hosp.undergo_treatment(item, id, audit_vars))
                             except simpy.Interrupt:
                                 yield env.process(hosp.adr_yield(id, 20))
 
@@ -496,15 +451,16 @@ def Patient(env, id, hosp, ptype=None):
                             audit_vars.cost_units.remove(cost_min)
                             hosp.nurses.release(nurdmo_request)
                     else:
-                        p_time_see_doc = env.now
-                        p_queuing_time = env.now - p_time_in
+                        p_queuing_time = env.now - p_time_see_doc
+                        #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                        audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                         audit_vars.patients_waiting -= 1
                         audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                         print('Patient %s gets attended by dmo at %.2f.: %s. ' % (id, env.now, item))
                         audit_vars.patients_at_consultation += 1
                         audit_vars.cost_units.append(cost_min)
                         try:
-                            yield env.process(hosp.undergo_treatment(item, id))
+                            yield env.process(hosp.undergo_treatment(item, id, audit_vars))
                         except simpy.Interrupt:
                             yield env.process(hosp.adr_yield(id, 20))
 
@@ -518,10 +474,11 @@ def Patient(env, id, hosp, ptype=None):
                 with hosp.nurses.request(priority=p_priority, preempt=False) as nur_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
-
-                    yield nur_request
                     p_time_see_nurse = env.now
-                    p_queuing_time = env.now - p_time_in
+                    yield nur_request
+                    p_queuing_time = env.now - p_time_see_nurse
+                    #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                     audit_vars.cost_units.append(cost_min)
@@ -531,7 +488,7 @@ def Patient(env, id, hosp, ptype=None):
                     else:
                         audit_vars.patients_at_treatment += 1
                     try:
-                        yield env.process(hosp.undergo_treatment(item, id))
+                        yield env.process(hosp.undergo_treatment(item, id, audit_vars))
                     except simpy.Interrupt:
                         yield env.process(hosp.adr_yield(id, 20))
 
@@ -546,17 +503,17 @@ def Patient(env, id, hosp, ptype=None):
                 with hosp.cashiers.request() as cas_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
-
-                    yield cas_request
                     p_time_cashier = env.now
-                    p_queuing_time = env.now - p_time_in
-
+                    yield cas_request
+                    p_queuing_time = env.now - p_time_cashier
+                    #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    audit_vars.all_patients_ritems_ever[(id, item)]=([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                     audit_vars.cost_units.append(cost_min)
                     print('Patient %s gets attended by cashier at %.2f.: %s.' % (id, env.now, item))
                     audit_vars.patients_at_cashier += 1
-                    yield env.process(hosp.undergo_treatment(item, id))
+                    yield env.process(hosp.undergo_treatment(item, id, audit_vars))
                     audit_vars.patients_at_cashier -= 1
                     print('Patient %s leaves cashiers station at %.2f.' % (id, env.now))
                     audit_vars.cost_units.remove(cost_min)
@@ -565,17 +522,17 @@ def Patient(env, id, hosp, ptype=None):
                 with hosp.pharmacists.request() as phm_request:
                     audit_vars.patients_waiting += 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] += 1
-
-                    yield phm_request
                     p_time_pharmacist = env.now
-                    p_queuing_time = env.now - p_time_in
-
+                    yield phm_request
+                    p_queuing_time = env.now - p_time_pharmacist
+                    audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                     audit_vars.cost_units.append(cost_min)
                     print('Patient %s gets attended by pharmacist at %.2f.: %s.' % (id, env.now, item))
                     audit_vars.patients_at_pharmacy += 1
-                    yield env.process(hosp.undergo_treatment(item, id))
+                    yield env.process(hosp.undergo_treatment(item, id, audit_vars))
                     audit_vars.patients_at_pharmacy -= 1
                     print('Patient %s leaves pharmacy at %.2f.' % (id, env.now))
                     audit_vars.cost_units.remove(cost_min)
@@ -589,6 +546,8 @@ def Patient(env, id, hosp, ptype=None):
         #audit_vars.cost_unit_time_denom -= 1
     print('removing patient '+str(id))
     print(audit_vars.all_patients)
+    audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+    #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
     del audit_vars.all_patients[id]
     try:
         del audit_vars.patients_between_treatment_cycles[id]
@@ -604,7 +563,7 @@ def Patient(env, id, hosp, ptype=None):
 
 
 
-def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode):
+def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode, audit_vars):
     # Create the hospital
     audit_vars.hospital = Hospital(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists)
     t_inter = audit_vars.audit_interval
@@ -615,13 +574,13 @@ def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, 
     #    env.process(Patient(env, i, audit_vars.hospital))
     # Create more cars while the simulation is running
 
-
-
     if(sim_mode != 'schedule'):
         while True:
             yield env.timeout(random.randint(t_inter, t_inter + 60*1))
             i += 1
-            env.process(Patient(env, i, audit_vars.hospital, None))
+            env.process(Patient(env, i, audit_vars.hospital, None, audit_vars))
+
+
 
     else:
         schedule = [
@@ -630,6 +589,14 @@ def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, 
                     (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),(60 * 1, 1), (60 * 1, 4),
                     (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),(60 * 1, 3), (60 * 1, 1),
                     ]
+
+        #schedule = [
+        #            (60 * 26, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 4),(60 * 1, 4),(60 * 1, 1),
+        #            (60 * 1, 4),(60 * 1, 1),(60 * 1, 1),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 4),(60 * 1, 1),
+        #            (60 * 15, 4), (60 * 1, 4), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 4),(60 * 1, 1), (60 * 1, 4),
+        #            (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),(60 * 1, 4), (60 * 1, 1),
+        #            ]
+
         '''
             (60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 3),(60 * 1, 4),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),
                     (60 * 15, 2),(60 * 1, 1),(60 * 1, 1),(60 * 1, 3),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 1),
@@ -674,12 +641,20 @@ def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, 
                     #(60 * 1, 1), (60 * 1, 1),(60 * 3, 1), (60 * 2, 1),(60 * 2, 1),(60 * 3, 1), (60 * 2, 1), (60 * 3, 1), (60 * 1, 1),
                     #(60 * 2, 1), (60 * 3, 1), (60 * 1, 1), (60 * 5, 1)]
         for pi in schedule:
+            time_of_day = (env.now % (24 * 60)) / 60
+            print('time of day = ' + str(time_of_day) + ' env_now=' + str(env.now))
+            # audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+            if (time_of_day >= 17 and time_of_day <= 23):
+                yield env.process(audit_vars.hospital.ovr_nite(id, (23 - time_of_day + 8 + random.randint(0, 8))))
+            if (time_of_day >= 0 and time_of_day <= 8):
+                yield env.process(audit_vars.hospital.ovr_nite(id, (8 - time_of_day + random.randint(0, 8))))
+
             intv, ttype = pi
             yield env.timeout(intv)
             i += 1
-            env.process(Patient(env, i, audit_vars.hospital, ttype))
+            env.process(Patient(env, i, audit_vars.hospital, ttype, audit_vars))
 
-def perform_audit(env):
+def perform_audit(env, audit_vars, printout=False):
     """Called at each audit interval. Records simulation time, total
     patients waiting, patients waiting by priority, and number of docs
     occupied. Will then schedule next audit."""
@@ -698,6 +673,7 @@ def perform_audit(env):
         # Record patients waiting by asking length of dictionary of all
         # patients (another way of doing things)
         audit_vars.audit_patients_uncomplete.append(len(audit_vars.all_patients))
+        audit_vars.audit_all_patients_ever.append(len(audit_vars.all_unique_patients_ever))
         audit_vars.audit_all_patients_treated.append(len(audit_vars.all_patients_treated))
         #audit_vars.audit_patients_treated.append(len(audit_vars.all_patients))
         audit_vars.audit_patients_in_ATU.append(len(audit_vars.all_patients)-len(audit_vars.patients_between_treatment_cycles))
@@ -733,58 +709,61 @@ def perform_audit(env):
         audit_vars.audit_curr_patients_adr.append(audit_vars.patients_adr)
         audit_vars.audit_cost_unit_time.append(sum(audit_vars.cost_units)/len(audit_vars.cost_units) if len(audit_vars.cost_units) !=0 else 0)
 
-        '''
-        print()
-        print('####################################### AUDIT Begin: #######################################')
-        print('PATIENTS WAITING:')
-        print(audit_vars.patients_waiting)
-        print(audit_vars.audit_patients_waiting)
-        print('PATIENTS AT ADMIN:')
-        print(audit_vars.patients_at_admin)
-        print('PATIENTS BETWEEN TREATMENTS CYCLES:')
-        print(len(audit_vars.patients_between_treatment_cycles))
-        print('PATIENTS BETWEEN TREATMENTS:')
-        print(len(audit_vars.patients_between_treatments))
+        if(printout):
+            print()
+            print('####################################### AUDIT Begin: #######################################')
+            print('PATIENTS WAITING:')
+            print(audit_vars.patients_waiting)
+            print(audit_vars.audit_patients_waiting)
+            print('PATIENTS AT ADMIN:')
+            print(audit_vars.patients_at_admin)
+            print('PATIENTS BETWEEN TREATMENTS CYCLES:')
+            print(len(audit_vars.patients_between_treatment_cycles))
+            print('PATIENTS BETWEEN TREATMENTS:')
+            print(len(audit_vars.patients_between_treatments))
 
-        print('PATIENTS AT CASHIER:')
-        print(audit_vars.patients_at_cashier)
-        print('PATIENTS AT PHARMACY:')
-        print(audit_vars.patients_at_pharmacy)
-        print('PATIENTS AT CONSULTATION:')
-        print(audit_vars.patients_at_consultation)
-        print('PATIENTS AT TREATMENT:')
-        print(audit_vars.patients_at_treatment)
-        print('PATIENTS IN BETWEEN TREATMENT:')
-        print(audit_vars.audit_patients_between_treatments)
+            print('PATIENTS AT CASHIER:')
+            print(audit_vars.patients_at_cashier)
+            print('PATIENTS AT PHARMACY:')
+            print(audit_vars.patients_at_pharmacy)
+            print('PATIENTS AT CONSULTATION:')
+            print(audit_vars.patients_at_consultation)
+            print('PATIENTS AT TREATMENT:')
+            print(audit_vars.patients_at_treatment)
+            print('PATIENTS IN BETWEEN TREATMENT:')
+            print(audit_vars.audit_patients_between_treatments)
 
 
-        print('PATIENTS DB:')
-        print(len(audit_vars.all_patients))
-        print('PATIENTS DB Completed treatment:')
-        print(len(audit_vars.all_patients_treated))
-        print('PATIENTS DB EVER:')
-        print(len(audit_vars.all_patients_ever))
-        print('PATIENTS ADR EVER:')
-        print(len(audit_vars.all_patients_adr))
-        print('Resource Utilization:')
-        print(audit_vars.audit_resources_used)
-        print('nurse utilization:'+str(num_nurses))
-        print(audit_vars.hospital.nurses.count/num_nurses)
-        print('######################################## AUDIT End: ########################################')
-        print()
-        '''
-        print('PATIENTS ADR EVER:')
-        print(len(audit_vars.all_patients_adr))
+            print('PATIENTS DB:')
+            print(len(audit_vars.all_patients))
+            print('PATIENTS DB Completed treatment:')
+            print(len(audit_vars.all_patients_treated))
+            print('PATIENTS DB EVER:')
+            print(len(audit_vars.all_patients_ever))
+            print('PATIENTS ADR EVER:')
+            print(len(audit_vars.all_patients_adr))
+            print('Resource Utilization:')
+            print(audit_vars.audit_resources_used)
+            print('nurse utilization:'+str(num_nurses))
+            print(audit_vars.hospital.nurses.count/num_nurses)
+            print('######################################## AUDIT End: ########################################')
+            print()
 
+            print('PATIENTS ADR EVER:')
+            print(len(audit_vars.all_patients_adr))
+        #if(len(audit_vars.all_patients)>=5):
+        #    exit()
         # Trigger next audit after interval
         yield env.timeout(audit_vars.audit_interval)
 
-def build_audit_results():
+def build_audit_results(audit_vars):
     """At end of model run, transfers results held in lists into a pandas
     DataFrame."""
 
     audit_vars.results['time'] = audit_vars.audit_time
     audit_vars.results['uncompleted patients'] = audit_vars.audit_patients_uncomplete
+    audit_vars.results['all patients'] = audit_vars.audit_all_patients_ever
+    audit_vars.results['all patients flow'] = audit_vars.results['all patients']-audit_vars.results['all patients'].shift(1)
         #[a_i - b_i for a_i, b_i in zip(audit_vars.audit_patients_in_ATU, audit_vars.audit_patients_between_treatment_cycles)]
     #audit_vars.results['all patients treated'] = audit_vars.all_patients_treated
     #audit_vars.results['current # of patients'] = audit_vars.all_patients
@@ -821,18 +800,81 @@ def build_audit_results():
 
     audit_vars.results['datetime'] = pd.date_range(start='1/1/2020', periods=len(audit_vars.results), freq=str(audit_vars.audit_interval)+'min')
     audit_vars.results['cost per unit time'] = audit_vars.audit_cost_unit_time
+
+    audit_vars.results['scenario'] = 'chairs:'+str(num_chairs)+' nurses:'+str(num_nurses)+' drs:'+str(num_docs)
+    audit_vars.results['scenario_chairs']=num_chairs
+    audit_vars.results['scenario_nurses'] = num_nurses
+    audit_vars.results['scenario_docs'] = num_docs
+    audit_vars.results['Clinic Name'] = 'NCC'
+    audit_vars.results['Group'] = 'Breast'
+    audit_vars.results['Admit Source'] = 'Follow Up'
+
+    SIM_NAME = 'breast=' + 'chairs_' + str(num_chairs) + ' nurses_' + str(num_nurses) + ' drs_' + str(num_docs)
     audit_vars.patient_queuing_results.to_csv('patient results.csv')
     audit_vars.results.to_csv('operational results'+SIM_NAME+'.csv')
+    #print(audit_vars.all_patients_ever)
+    ape = audit_vars.all_patients_ritems_ever.values()
+    pdf = pd.DataFrame(data=ape, columns=['p_id', 'p_type', 'p_priority', 'p_adr', 'item', 'p_queuing_time'])
+    pdf['scenario'] = 'chairs:'+str(num_chairs)+' nurses:'+str(num_nurses)+' drs:'+str(num_docs)
+    pdf['scenario_chairs']=num_chairs
+    pdf['scenario_nurses'] = num_nurses
+    pdf['scenario_docs'] = num_docs
+    pdf['Clinic Name'] = 'NCC'
+    pdf['Group'] = 'Breast'
+    pdf['Admit Source'] = 'Follow Up'
+
+    pdf.to_csv('all_patients_' + SIM_NAME + '.csv')
+    return audit_vars.results, pdf
 
 # Setup and start the simulation
 random.seed(RANDOM_SEED)  # This helps reproducing the results
 
 # Create an environment and start the setup process
+num_chairs = 2
+num_nurses = 4
+num_docs = 2
+num_cashiers = 1
+num_pharmacists = 1
 
-sim_mode = 'schedule'
-env = simpy.Environment()
-env.process(setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode))
-env.process(perform_audit(env))
-# Execute!
-env.run(until=SIM_TIME)
-build_audit_results()
+scenarios = \
+[
+    (2, 2, 2), (3, 2, 2), (4, 2, 2),
+    (2, 3, 2), (3, 3, 2), (4, 3, 2),
+    (2, 4, 2), (3, 4, 2), (4, 4, 2),
+    (2, 2, 3), (3, 2, 3), (4, 2, 3),
+    (2, 3, 3), (3, 3, 3), (4, 3, 3),
+    (2, 4, 3), (3, 4, 3), (4, 4, 3),
+    (2, 2, 4), (3, 2, 4), (4, 2, 4),
+    (2, 3, 4), (3, 3, 4), (4, 3, 4),
+    (2, 4, 4), (3, 4, 4), (4, 4, 4),
+]
+
+#auditv = audit_vars()
+cnt = 1
+allopdf = None
+allpadf = None
+for scn in scenarios:
+    auditv = Audit_vars(cnt)
+
+    num_chairs, num_nurses, num_docs = scn
+    print('auditv:' + str(auditv.id) + ' scenario:'+str(scn))
+    num_cashiers, num_pharmacists = (1,1)
+    SIM_NAME = 'breast='+'chairs_'+str(num_chairs)+' nurses_'+str(num_nurses)+' drs_'+str(num_docs)
+    sim_mode = 'random'#'schedule'
+    env = simpy.Environment()
+    env.process(setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode, auditv))
+    env.process(perform_audit(env, auditv))
+    # Execute!
+    env.run(until=SIM_TIME)
+
+    opdf, padf = build_audit_results(auditv)
+    if(cnt == 1):
+        allopdf = opdf
+        allpadf = padf
+    else:
+        allopdf=allopdf .append(opdf)
+        allpadf=allpadf.append(padf)
+    cnt = cnt + 1
+
+allpadf.to_csv('all_patients_' + 'breast' + '.csv')
+allopdf.to_csv('operational resultsmeta1' + '.csv')
