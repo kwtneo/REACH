@@ -2,7 +2,7 @@ import dash
 import dash_core_components as dcc
 import dash_html_components as html
 from dash.dependencies import Input, Output, ClientsideFunction
-
+import dash_daq as daq
 import numpy as np
 import pandas as pd
 import datetime
@@ -31,6 +31,7 @@ scenario_nurse_list = df["scenario_nurses"].unique()
 scenario_doc_list = df["scenario_docs"].unique()
 clinic_list = df["Clinic Name"].unique()
 group_list = df["Group"].unique().tolist()
+item_list = pdf['p_type'].unique().tolist()
 
 df["Time"] = df["datetime"].apply(lambda x: dt.strptime(x, "%Y-%m-%d %H:%M:%S"))  # String -> Datetime
 #df["Time"] = df["datetime"].apply(lambda x: dt.strptime(x, "%d/%m/%Y %H:%M"))  # String -> Datetime
@@ -79,7 +80,6 @@ def description_card():
 
 def generate_control_card():
     """
-
     :return: A Div containing controls for graphs.
     """
     return html.Div(
@@ -137,6 +137,16 @@ def generate_control_card():
             ),
             html.Br(),
 
+            html.P("Select process 1"),
+            dcc.Dropdown(
+                id="item-select1",
+                options=[{"label": i, "value": i} for i in item_list],
+                value=item_list[0:1],
+                multi=True,
+            ),
+            html.Br(),
+
+
             html.Div(
                 id="reset-btn-outer",
                 children=html.Button(id="reset-btn", children="Reset", n_clicks=0),
@@ -144,19 +154,116 @@ def generate_control_card():
          ],
     )
 
-def generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, scenario_chair_num,
-                                    scenario_nurse_num,scenario_doc_num, reset):
+def generate_bar_graphs(clinic, hm_click, group_type, scenario_chair_num,scenario_nurse_num,scenario_doc_num, item_type1, reset):
     """
     :param: start: start date from selection.
     :param: end: end date from selection.
     :param: clinic: clinic from selection.
     :param: hm_click: clickData from heatmap.
     :param: group_type: admission type from selection.
+    :param: scenario_chair_num: number of chairs in the scenario.
+    :param: scenario_nurse_num: number of nurses in the scenario.
+    :param: scenario_doc_num: number of docs in the scenario.
+    :param: patient_stat: type of data/column.
     :param: reset (boolean): reset heatmap graph if True.
-
     :return: Patient volume annotated heatmap.
     """
-    #filtered_df = df[(df["Clinic Name"] == clinic) & (df["Admit Source"].isin(admit_type))]
+    import plotly.express as px
+    import plotly.graph_objects as go
+    filtered_df1 = pdf[(pdf["Clinic Name"] == clinic) & (pdf["scenario_chairs"].isin(scenario_chair_num)) & (pdf["scenario_docs"].isin(scenario_doc_num))
+                     & (pdf["scenario_nurses"].isin(scenario_nurse_num)) & (pdf["Group"].isin(group_type)) & (pdf["p_type"].isin(item_type1))]
+
+    filtered_df_adr = df[(pdf["Clinic Name"] == clinic) & (df["scenario_chairs"].isin(scenario_chair_num)) & (df["scenario_docs"].isin(scenario_doc_num))
+                     & (df["scenario_nurses"].isin(scenario_nurse_num)) & (df["Group"].isin(group_type))]
+
+    total_adr = filtered_df_adr['patients curr ADR'].sum()
+    item1_qt = filtered_df1['p_queuing_time'].mean()
+    print('item1:'+str(item_type1)+' time:'+str(item1_qt))
+    #item2_qt = filtered_df2['p_queuing_time'].mean()
+    #item3_qt = filtered_df3['p_queuing_time'].mean()
+
+    fig = go.Figure()
+    fig.add_trace(go.Indicator(
+        mode="gauge+number",
+        value=total_adr,
+        title={'text': "total ADR for scn: "+str(item_type1),'font':{'size':12}},
+        domain={'x': [0.65, 1], 'y': [0.5, 1]}
+    ))
+    fig.add_trace(go.Indicator(
+        mode="gauge+number",
+        value=item1_qt,
+        title={'text': "Avg wait time (mins):"+str(item_type1),'font':{'size':12}},
+        domain={'x': [0, .35], 'y': [0.5, 1]},
+    ))
+
+    return fig
+
+def generate_timeseries_graphs(start, end, clinic, hm_click, group_type, scenario_chair_num,scenario_nurse_num,scenario_doc_num, patient_stat, reset):
+    """
+    :param: start: start date from selection.
+    :param: end: end date from selection.
+    :param: clinic: clinic from selection.
+    :param: hm_click: clickData from heatmap.
+    :param: group_type: admission type from selection.
+    :param: scenario_chair_num: number of chairs in the scenario.
+    :param: scenario_nurse_num: number of nurses in the scenario.
+    :param: scenario_doc_num: number of docs in the scenario.
+    :param: patient_stat: type of data/column.
+    :param: reset (boolean): reset heatmap graph if True.
+    :return: Patient volume annotated heatmap.
+    """
+    #import plotly.graph_objs as go
+    #fig = go.Figure(data=[go.Scatter(x=[1, 2, 3], y=[4, 1, 2])])
+    filtered_df = df[(df["Clinic Name"] == clinic) & (df["scenario_chairs"].isin(scenario_chair_num)) & (df["scenario_docs"].isin(scenario_doc_num))
+                     & (df["scenario_nurses"].isin(scenario_nurse_num)) & (df["Group"].isin(group_type))]
+    filtered_df = filtered_df.sort_values("Time").set_index("Time")[start:end]
+    waitma = filtered_df['all patients waiting'].expanding().mean()
+    if(patient_stat=='wait'):
+        datadf = filtered_df['all patients waiting'].rolling(24).mean()
+    if(patient_stat=='seen'):
+        #pflow = int(filtered_day[filtered_day["Time Hour"] == x_val]["all patients flow"].sum())
+        datadf = filtered_df['all patients'].rolling(24).mean()
+        datadf = filtered_df['all patients'].rolling(1).mean()
+
+    data = [
+        dict(
+            x=filtered_df['datetime'],
+            y=datadf,
+            name="",
+            colorscale=[[0, "#caf3ff"], [1, "#2c82ff"]],
+        )
+    ]
+
+    layout = dict(
+        margin=dict(l=70, b=50, t=50, r=50),
+        #modebar={"orientation": "v"},
+        font=dict(family="Open Sans"),
+        #shapes=shapes,
+        xaxis=dict(side="top",ticks="",ticklen=2,tickfont=dict(family="sans-serif"),tickcolor="#ffffff",),
+        yaxis=dict(side="left", ticks="", tickfont=dict(family="sans-serif"), ticksuffix=" "),
+        hovermode="closest",
+        showlegend=False,
+        height=300,
+        #width=800,
+    )
+    return {"data": data, "layout": layout}
+
+
+def generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, scenario_chair_num,scenario_nurse_num,scenario_doc_num, patient_stat, reset):
+    """
+    :param: start: start date from selection.
+    :param: end: end date from selection.
+    :param: clinic: clinic from selection.
+    :param: hm_click: clickData from heatmap.
+    :param: group_type: admission type from selection.
+    :param: scenario_chair_num: number of chairs in the scenario.
+    :param: scenario_nurse_num: number of nurses in the scenario.
+    :param: scenario_doc_num: number of docs in the scenario.
+    :param: patient_stat: type of data/column.
+    :param: reset (boolean): reset heatmap graph if True.
+    :return: Patient volume annotated heatmap.
+    """
+
     filtered_df = df[(df["Clinic Name"] == clinic) & (df["scenario_chairs"].isin(scenario_chair_num)) & (df["scenario_docs"].isin(scenario_doc_num))
                      & (df["scenario_nurses"].isin(scenario_nurse_num)) & (df["Group"].isin(group_type))]
     filtered_df = filtered_df.sort_values("Time").set_index("Time")[start:end]
@@ -200,7 +307,6 @@ def generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, sc
     for ind_y, day in enumerate(y_axis):
         filtered_day = filtered_df[filtered_df["Days of Wk"] == day]
         for ind_x, x_val in enumerate(x_axis):
-            #sum_of_record = filtered_day[filtered_day["Time Hour"] == x_val]["Number of Records"].sum()
             #columns
             # all patients waiting
             #  all patients treated
@@ -225,8 +331,10 @@ def generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, sc
             padr = int(filtered_day[filtered_day["Time Hour"] == x_val]["patients total ADR"].mean())
             pflow = int(filtered_day[filtered_day["Time Hour"] == x_val]["all patients flow"].sum())
 
-
-            sum_of_record = pflow # puncm - pbtwn_c#pwait+padmin+pcons+ptreat+ppharm+pcash
+            if(patient_stat=='seen'):
+                sum_of_record = pflow # puncm - pbtwn_c#pwait+padmin+pcons+ptreat+ppharm+pcash
+            if (patient_stat == 'wait'):
+                sum_of_record = pwait
             #print('Time Hour:'+str(x_val)+' '+str(sum_of_record))
             z[ind_y][ind_x] = sum_of_record
 
@@ -280,6 +388,9 @@ def generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, sc
         ),
         hovermode="closest",
         showlegend=False,
+        height=300,
+        #width=800,
+
     )
     return {"data": data, "layout": layout}
 
@@ -317,27 +428,54 @@ app.layout = html.Div(
                 html.Div(
                     id="patient_volume_card",
                     children=[
-                        html.B("Patients Seen"),
+                        html.B("Average # Patients Seen"),
                         html.Hr(),
                         dcc.Graph(id="patient_volume_hm"),
                     ],
                 ),
                 # Patient Wait time by Department
+                html.Div(
+                    id="patient_wait_card",
+                    children=[
+                        html.B("Average # Patients Waiting"),
+                        html.Hr(),
+                        dcc.Graph(id="patient_waiting_hm"),
+                    ],
+                ),
+                html.Div(children=[
+                    html.Div(
+                        id="patient_seen_graph",
+                        children=[
+                            html.B("Cumulative Patients Seen"),
+                            html.Hr(),
+                            dcc.Graph(id="patient_seen_gp"),
+                        ],
+                    ),
+
+                    html.Div(
+                        id="patient_wait_graph",
+                        children=[
+                            html.B("Patients Waiting timeseries"),
+                            html.Hr(),
+                            dcc.Graph(id="patient_waiting_gp"),
+                        ],
+                    ),
+                ], className="row"),
+                html.Div(
+                    id="item-select-wait",
+                    children=[
+                        html.B("Average Waiting times"),
+                        html.Hr(),
+                        dcc.Graph(id="item_wait_times"),
+                    ],
+                ),
+
             ],
         ),
     ],
 )
 
-'''html.Div(
-    id="distribution",
-    children=[
-        html.B("Patient Wait Time Distributions"),
-        html.Hr(),
-        html.Div(id="wait_time_dist", children=None),
-    ],
-),'''
-
-
+##############################app callbacks################################
 @app.callback(
     Output("patient_volume_hm", "figure"),
     [
@@ -366,136 +504,133 @@ def update_heatmap(start, end, clinic, hm_click, group_type, scenario_chair_num,
             reset = True
 
     # Return to original hm(no colored annotation) by resetting
-    return generate_patient_volume_heatmap(
-        start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, reset
+    return generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, 'seen', reset
     )
 
 
-#app.clientside_callback(
-#    ClientsideFunction(namespace="clientside", function_name="resize"),
-#    Output("output-clientside", "children"),
-#    [Input("wait_time_table", "children")] + wait_time_inputs + score_inputs,
-#)
-
-
-'''
 @app.callback(
-    Output("wait_time_table", "children"),
+    Output("patient_waiting_hm", "figure"),
     [
         Input("date-picker-select", "start_date"),
         Input("date-picker-select", "end_date"),
         Input("clinic-select", "value"),
-        Input("admit-select", "value"),
-        Input("patient_volume_hm", "clickData"),
+        Input("patient_waiting_hm", "clickData"),
+        Input("group-select", "value"),
+        Input("scenario-chair-select", "value"),
+        Input("scenario-nurse-select", "value"),
+        Input("scenario-doc-select", "value"),
         Input("reset-btn", "n_clicks"),
-    ]
-    + wait_time_inputs
-    + score_inputs,
+    ],
 )
-
-def update_table(start, end, clinic, admit_type, heatmap_click, reset_click, *args):
+def update_heatmap(start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, reset_click):
     start = start + " 00:00:00"
     end = end + " 00:00:00"
 
+    reset = False
     # Find which one has been triggered
     ctx = dash.callback_context
 
-    prop_id = ""
-    prop_type = ""
-    triggered_value = None
     if ctx.triggered:
         prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
-        prop_type = ctx.triggered[0]["prop_id"].split(".")[1]
-        triggered_value = ctx.triggered[0]["value"]
+        if prop_id == "reset-btn":
+            reset = True
 
-    # filter data
-    filtered_df = df[
-        (df["Clinic Name"] == clinic) & (df["Admit Source"].isin(admit_type))
-    ]
-    filtered_df = filtered_df.sort_values("Check-In Time").set_index("Check-In Time")[
-        start:end
-    ]
-    departments = filtered_df["Department"].unique()
-
-    # Highlight click data's patients in this table
-    if heatmap_click is not None and prop_id != "reset-btn":
-        hour_of_day = heatmap_click["points"][0]["x"]
-        weekday = heatmap_click["points"][0]["y"]
-        clicked_df = filtered_df[
-            (filtered_df["Days of Wk"] == weekday)
-            & (filtered_df["Check-In Hour"] == hour_of_day)
-        ]  # slice based on clicked weekday and hour
-        departments = clicked_df["Department"].unique()
-        filtered_df = clicked_df
-
-    # range_x for all plots
-    wait_time_xrange = [
-        filtered_df["Wait Time Min"].min() - 2,
-        filtered_df["Wait Time Min"].max() + 2,
-    ]
-    score_xrange = [
-        filtered_df["Care Score"].min() - 0.5,
-        filtered_df["Care Score"].max() + 0.5,
-    ]
-
-    figure_list = []
-
-    if prop_type != "selectedData" or (
-        prop_type == "selectedData" and triggered_value is None
-    ):  # Default condition, all ""
-
-        for department in departments:
-            department_wait_time_figure = create_table_figure(
-                department, filtered_df, "Wait Time Min", wait_time_xrange, ""
-            )
-            figure_list.append(department_wait_time_figure)
-
-        for department in departments:
-            department_score_figure = create_table_figure(
-                department, filtered_df, "Care Score", score_xrange, ""
-            )
-            figure_list.append(department_score_figure)
-
-    elif prop_type == "selectedData":
-        selected_patient = ctx.triggered[0]["value"]["points"][0]["customdata"]
-        selected_index = [ctx.triggered[0]["value"]["points"][0]["pointIndex"]]
-
-        # [] turn on un-selection for all other plots, [index] for this department
-        for department in departments:
-            wait_selected_index = []
-            if prop_id.split("_")[0] == department:
-                wait_selected_index = selected_index
-
-            department_wait_time_figure = create_table_figure(
-                department,
-                filtered_df,
-                "Wait Time Min",
-                wait_time_xrange,
-                wait_selected_index,
-            )
-            figure_list.append(department_wait_time_figure)
-
-        for department in departments:
-            score_selected_index = []
-            if department == prop_id.split("_")[0]:
-                score_selected_index = selected_index
-
-            department_score_figure = create_table_figure(
-                department,
-                filtered_df,
-                "Care Score",
-                score_xrange,
-                score_selected_index,
-            )
-            figure_list.append(department_score_figure)
-
-    # Put figures in table
-    table = generate_patient_table(
-        figure_list, departments, wait_time_xrange, score_xrange
+    # Return to original hm(no colored annotation) by resetting
+    return generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, 'wait', reset
     )
-    return table
 
-'''
+@app.callback(
+    Output("patient_seen_gp", "figure"),
+    [
+        Input("date-picker-select", "start_date"),
+        Input("date-picker-select", "end_date"),
+        Input("clinic-select", "value"),
+        Input("patient_seen_gp", "clickData"),
+        Input("group-select", "value"),
+        Input("scenario-chair-select", "value"),
+        Input("scenario-nurse-select", "value"),
+        Input("scenario-doc-select", "value"),
+        Input("reset-btn", "n_clicks"),
+    ],
+)
+def update_graph(start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, reset_click):
+    start = start + " 00:00:00"
+    end = end + " 00:00:00"
+
+    reset = False
+    # Find which one has been triggered
+    ctx = dash.callback_context
+
+    if ctx.triggered:
+        prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        if prop_id == "reset-btn":
+            reset = True
+
+    # Return to original hm(no colored annotation) by resetting
+    return generate_timeseries_graphs(start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, 'seen', reset
+    )
+
+
+@app.callback(
+    Output("patient_waiting_gp", "figure"),
+    [
+        Input("date-picker-select", "start_date"),
+        Input("date-picker-select", "end_date"),
+        Input("clinic-select", "value"),
+        Input("patient_waiting_gp", "clickData"),
+        Input("group-select", "value"),
+        Input("scenario-chair-select", "value"),
+        Input("scenario-nurse-select", "value"),
+        Input("scenario-doc-select", "value"),
+        Input("reset-btn", "n_clicks"),
+    ],
+)
+def update_graph(start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, reset_click):
+    start = start + " 00:00:00"
+    end = end + " 00:00:00"
+
+    reset = False
+    # Find which one has been triggered
+    ctx = dash.callback_context
+
+    if ctx.triggered:
+        prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        if prop_id == "reset-btn":
+            reset = True
+
+    # Return to original hm(no colored annotation) by resetting
+    return generate_timeseries_graphs(start, end, clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, 'wait', reset
+    )
+
+
+@app.callback(
+    Output("item_wait_times", "figure"),
+    [
+        Input("clinic-select", "value"),
+        Input("patient_waiting_gp", "clickData"),
+        Input("group-select", "value"),
+        Input("scenario-chair-select", "value"),
+        Input("scenario-nurse-select", "value"),
+        Input("scenario-doc-select", "value"),
+        Input("item-select1", "value"),
+        Input("reset-btn", "n_clicks"),
+    ],
+)
+def update_bar(clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, item_type1, reset_click):
+    reset = False
+    # Find which one has been triggered
+    ctx = dash.callback_context
+
+    if ctx.triggered:
+        prop_id = ctx.triggered[0]["prop_id"].split(".")[0]
+        if prop_id == "reset-btn":
+            reset = True
+
+    # Return to original hm(no colored annotation) by resetting
+    return generate_bar_graphs(clinic, hm_click, group_type, scenario_chair_num, scenario_nurse_num, scenario_doc_num, item_type1, reset
+    )
+
+
 
 # Run the server
 if __name__ == "__main__":

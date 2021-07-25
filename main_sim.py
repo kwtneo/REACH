@@ -7,12 +7,12 @@ import Regimes
 
 RANDOM_SEED = random.randint(1,10000)
 #p_inter = 2
-SIM_TIME = 30*24*60
+SIM_TIME = 60*24*60
 
 class Audit_vars:
     def __init__(self, vars_id=1):
         self.id = vars_id
-        self.warm_up = 15
+        self.warm_up = 1
         self.audit_time = []
         self.audit_all_patients_ever = []
         self.audit_patients_in_ATU = []
@@ -40,7 +40,7 @@ class Audit_vars:
         self.audit_cashiers_occupied = []
         self.audit_all_patients_treated = []
 
-        self.audit_interval = 60
+        self.audit_interval = 30
         self.audit_cost_unit_time=[]
         #visualization data stores
         #resource utilization graphs
@@ -69,6 +69,7 @@ class Audit_vars:
         self.all_patients_treated = {}
         self.all_patients_ritems_ever = {}
         self.all_unique_patients_ever = {}
+        self.all_patient_wait_times = {}
         #self.#all_patients_being_treated = {}
         self.patient_db={}
         self.results = pd.DataFrame()
@@ -307,7 +308,9 @@ def Patient(env, id, hosp, ptype, audit_vars):
 
     p_time_in = env.now
     p_queuing_time=0; p_time_see_doc=0; p_time_see_nurse=0; p_time_cashier=0; p_time_pharmacist=0
+    audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr, p_queuing_time])
     audit_vars.all_unique_patients_ever[id] = ([id, p_types[p_type], p_priority, p_adr])
+    #audit_vars.all_patients_ritems_ever[id] = ([id, p_types[p_type], p_priority, p_adr, p_queuing_time])
     item_count = 0
     for item in regimes:
         audit_vars.patients_between_treatments[id] = 1
@@ -336,7 +339,10 @@ def Patient(env, id, hosp, ptype, audit_vars):
             #audit_vars.patients_at_treatment -= 1
             p_queuing_time = env.now - p_time_treatment
             #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
-            audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+            if(item!='time between visit'):
+                audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr, p_queuing_time+audit_vars.all_patient_wait_times[id][4]])
+                print('Patient id:' + str(id) + ' undergoing:'+item+' wait_time='+str(p_queuing_time))
             audit_vars.cost_units.remove(cost_min)
 
         else:
@@ -359,8 +365,11 @@ def Patient(env, id, hosp, ptype, audit_vars):
 
                 adr_treatment = env.now
                 p_queuing_time = env.now - adr_treatment
-                #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
-                audit_vars.all_patients_ritems_ever[(id, item)]=([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                if (item != 'time between visit'):
+                    #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    audit_vars.all_patients_ritems_ever[(id, item)]=([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr, p_queuing_time + audit_vars.all_patient_wait_times[id][4]])
+                    print('Patient id:' + str(id) + ' undergoing:' + item + ' wait_time=' + str(p_queuing_time))
                 print('Patient %s gets attended due to ADR: dmo, 2 nurses, pharmacist at %.2f.: %s.' % (id, env.now, item))
                 audit_vars.patients_at_treatment += 1
 
@@ -397,7 +406,10 @@ def Patient(env, id, hosp, ptype, audit_vars):
                             yield nurchair_request
                             p_queuing_time = env.now - p_time_chair_treatment
                             #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
-                            audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                            if (item != 'time between visit'):
+                                audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                                audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr,p_queuing_time +audit_vars.all_patient_wait_times[id][4]])
+                                print('Patient id:' + str(id) + ' undergoing:' + item + ' wait_time=' + str(p_queuing_time))
                             audit_vars.patients_waiting -= 1
                             audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
 
@@ -432,7 +444,10 @@ def Patient(env, id, hosp, ptype, audit_vars):
                             yield nurdmo_request
                             p_queuing_time = env.now - p_time_see_docnurse
                             #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
-                            audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                            if (item != 'time between visit'):
+                                audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                                audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr,p_queuing_time +audit_vars.all_patient_wait_times[id][4]])
+                                print('Patient id:' + str(id) + ' undergoing:' + item + ' wait_time=' + str(p_queuing_time))
                             audit_vars.patients_waiting -= 1
                             audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
 
@@ -453,7 +468,12 @@ def Patient(env, id, hosp, ptype, audit_vars):
                     else:
                         p_queuing_time = env.now - p_time_see_doc
                         #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
-                        audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                        if (item != 'time between visit'):
+                            audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                            audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr,
+                                                                        p_queuing_time +
+                                                                        audit_vars.all_patient_wait_times[id][4]])
+                            print('Patient id:' + str(id) + ' undergoing:' + item + ' wait_time=' + str(p_queuing_time))
                         audit_vars.patients_waiting -= 1
                         audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                         print('Patient %s gets attended by dmo at %.2f.: %s. ' % (id, env.now, item))
@@ -478,7 +498,11 @@ def Patient(env, id, hosp, ptype, audit_vars):
                     yield nur_request
                     p_queuing_time = env.now - p_time_see_nurse
                     #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
-                    audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    if (item != 'time between visit'):
+                        audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                        audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr, p_queuing_time +
+                                                                    audit_vars.all_patient_wait_times[id][4]])
+                        print('Patient id:' + str(id) + ' undergoing:' + item + ' wait_time=' + str(p_queuing_time))
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                     audit_vars.cost_units.append(cost_min)
@@ -507,7 +531,11 @@ def Patient(env, id, hosp, ptype, audit_vars):
                     yield cas_request
                     p_queuing_time = env.now - p_time_cashier
                     #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
-                    audit_vars.all_patients_ritems_ever[(id, item)]=([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    if (item != 'time between visit'):
+                        audit_vars.all_patients_ritems_ever[(id, item)]=([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                        audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr, p_queuing_time +
+                                                                    audit_vars.all_patient_wait_times[id][4]])
+                        print('Patient id:' + str(id) + ' undergoing:' + item + ' wait_time=' + str(p_queuing_time))
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
                     audit_vars.cost_units.append(cost_min)
@@ -525,7 +553,11 @@ def Patient(env, id, hosp, ptype, audit_vars):
                     p_time_pharmacist = env.now
                     yield phm_request
                     p_queuing_time = env.now - p_time_pharmacist
-                    audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                    if (item != 'time between visit'):
+                        audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+                        audit_vars.all_patient_wait_times[id] = ([id, p_types[p_type], p_priority, p_adr, p_queuing_time +
+                                                                    audit_vars.all_patient_wait_times[id][4]])
+                        print('Patient id:' + str(id) + ' undergoing:' + item + ' wait_time=' + str(p_queuing_time))
                     #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
                     audit_vars.patients_waiting -= 1
                     audit_vars.patients_waiting_by_priority[p_priority - 1] -= 1
@@ -547,6 +579,8 @@ def Patient(env, id, hosp, ptype, audit_vars):
     print('removing patient '+str(id))
     print(audit_vars.all_patients)
     audit_vars.all_patients_ritems_ever[(id, item)] = ([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
+    #audit_vars.all_unique_patients_ever[id] = (
+    #[id, p_types[p_type], p_priority, p_adr, p_queuing_time + audit_vars.all_unique_patients_ever[id][4]])
     #audit_vars.all_patients_ever.append([id, p_types[p_type], p_priority, p_adr, item, p_queuing_time])
     del audit_vars.all_patients[id]
     try:
@@ -583,63 +617,44 @@ def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, 
 
 
     else:
+
         schedule = [
                     (60 * 26, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 3),(60 * 1, 4),(60 * 1, 1),
                     (60 * 1, 2),(60 * 1, 1),(60 * 1, 1),(60 * 1, 3),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 1),
                     (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),(60 * 1, 1), (60 * 1, 4),
                     (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),(60 * 1, 3), (60 * 1, 1),
-                    ]
-
-        #schedule = [
-        #            (60 * 26, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 4),(60 * 1, 4),(60 * 1, 1),
-        #            (60 * 1, 4),(60 * 1, 1),(60 * 1, 1),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 4),(60 * 1, 1),
-        #            (60 * 15, 4), (60 * 1, 4), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 4),(60 * 1, 1), (60 * 1, 4),
-        #            (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),(60 * 1, 4), (60 * 1, 1),
-        #            ]
-
-        '''
-            (60 * .5, 1),(60 * .5, 2),(60 * 1, 2),(60 * 1, 1),(60 * 1, 3),(60 * 1, 4),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),(60 * 1, 1),
-                    (60 * 15, 2),(60 * 1, 1),(60 * 1, 1),(60 * 1, 3),(60 * 1, 1),(60 * 1, 2),(60 * 1, 4),(60 * 1, 1),(60 * 1, 2),(60 * 1, 1),
-                    (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4),(60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
-                    (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1),(60 * 1, 2), (60 * 1, 1), (60 * 1, 4),
-                    (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1),(60 * 1, 1), (60 * 1, 3), (60 * 1, 1),
-
-            (60 * 15, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
-            (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
-            (60 * 15, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
+                    (60 * 26, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
+                    (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1),
+                    (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 4),
+                    (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1),
+            (60 * 26, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1),
+            (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
             (60 * 1, 2), (60 * 1, 1),
-            (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1),
-            (60 * 1, 1), (60 * 1, 1),
             (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),
             (60 * 1, 1), (60 * 1, 4),
             (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
             (60 * 1, 3), (60 * 1, 1),
-            (60 * 15, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
-            (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
-            (60 * 15, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
+            (60 * 26, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1),
+            (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
             (60 * 1, 2), (60 * 1, 1),
-            (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1),
-            (60 * 1, 1), (60 * 1, 1),
             (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),
             (60 * 1, 1), (60 * 1, 4),
             (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
             (60 * 1, 3), (60 * 1, 1),
-            (60 * 15, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
-            (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
-            (60 * 15, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
+            (60 * 26, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * .5, 1), (60 * .5, 2), (60 * 1, 2), (60 * 1, 1),
+            (60 * 1, 3), (60 * 1, 4), (60 * 1, 1),
+            (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2), (60 * 1, 4), (60 * 1, 1),
             (60 * 1, 2), (60 * 1, 1),
-            (60 * 15, 3), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 4), (60 * 1, 1),
-            (60 * 1, 1), (60 * 1, 1),
             (60 * 15, 4), (60 * 1, 2), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 3), (60 * 1, 1), (60 * 1, 2),
             (60 * 1, 1), (60 * 1, 4),
             (60 * 15, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 2), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),
             (60 * 1, 3), (60 * 1, 1),
-
         ]
-        '''
-                    #(60 * 1, 1), (60 * 1, 1), (60 * 1, 1), (60 * 1, 1),(60 * 1, 1), (60 * 1, 1),(60 * 1, 1), (60 * 1, 1),(60 * 1, 1),
-                    #(60 * 1, 1), (60 * 1, 1),(60 * 3, 1), (60 * 2, 1),(60 * 2, 1),(60 * 3, 1), (60 * 2, 1), (60 * 3, 1), (60 * 1, 1),
-                    #(60 * 2, 1), (60 * 3, 1), (60 * 1, 1), (60 * 5, 1)]
+
+        #schedule = [(60 * 26, 1),]
+
         for pi in schedule:
             time_of_day = (env.now % (24 * 60)) / 60
             print('time of day = ' + str(time_of_day) + ' env_now=' + str(env.now))
@@ -813,8 +828,8 @@ def build_audit_results(audit_vars):
     audit_vars.patient_queuing_results.to_csv('patient results.csv')
     audit_vars.results.to_csv('operational results'+SIM_NAME+'.csv')
     #print(audit_vars.all_patients_ever)
-    ape = audit_vars.all_patients_ritems_ever.values()
-    pdf = pd.DataFrame(data=ape, columns=['p_id', 'p_type', 'p_priority', 'p_adr', 'item', 'p_queuing_time'])
+    ape = audit_vars.all_patient_wait_times.values()
+    pdf = pd.DataFrame(data=ape, columns=['p_id', 'p_type', 'p_priority', 'p_adr', 'p_queuing_time'])
     pdf['scenario'] = 'chairs:'+str(num_chairs)+' nurses:'+str(num_nurses)+' drs:'+str(num_docs)
     pdf['scenario_chairs']=num_chairs
     pdf['scenario_nurses'] = num_nurses
@@ -838,6 +853,20 @@ num_pharmacists = 1
 
 scenarios = \
 [
+    (5, 20, 5), (10, 20, 5), (15, 20, 5),
+    (5, 30, 5), (10, 30, 5), (15, 30, 5),
+    (5, 40, 5), (10, 40, 5), (15, 40, 5),
+    (5, 20, 10), (10, 20, 10), (15, 20, 10),
+    (5, 30, 10), (10, 30, 10), (15, 30, 10),
+    (5, 40, 10), (10, 40, 10), (15, 40, 10),
+    (5, 20, 15), (10, 20, 15), (15, 20, 15),
+    (5, 30, 15), (10, 30, 15), (15, 30, 15),
+    (5, 40, 15), (10, 40, 15), (15, 40, 15),
+]
+#scenarios=[(5, 20, 5),]
+'''
+scenarios = \
+[
     (2, 2, 2), (3, 2, 2), (4, 2, 2),
     (2, 3, 2), (3, 3, 2), (4, 3, 2),
     (2, 4, 2), (3, 4, 2), (4, 4, 2),
@@ -848,7 +877,7 @@ scenarios = \
     (2, 3, 4), (3, 3, 4), (4, 3, 4),
     (2, 4, 4), (3, 4, 4), (4, 4, 4),
 ]
-
+'''
 #auditv = audit_vars()
 cnt = 1
 allopdf = None
@@ -860,7 +889,7 @@ for scn in scenarios:
     print('auditv:' + str(auditv.id) + ' scenario:'+str(scn))
     num_cashiers, num_pharmacists = (1,1)
     SIM_NAME = 'breast='+'chairs_'+str(num_chairs)+' nurses_'+str(num_nurses)+' drs_'+str(num_docs)
-    sim_mode = 'random'#'schedule'
+    sim_mode = 'schedule'#'schedule'
     env = simpy.Environment()
     env.process(setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode, auditv))
     env.process(perform_audit(env, auditv))
