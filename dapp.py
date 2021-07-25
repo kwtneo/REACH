@@ -176,7 +176,7 @@ def generate_bar_graphs(clinic, hm_click, group_type, scenario_chair_num,scenari
     filtered_df_adr = df[(pdf["Clinic Name"] == clinic) & (df["scenario_chairs"].isin(scenario_chair_num)) & (df["scenario_docs"].isin(scenario_doc_num))
                      & (df["scenario_nurses"].isin(scenario_nurse_num)) & (df["Group"].isin(group_type))]
 
-    total_adr = filtered_df_adr['patients curr ADR'].sum()
+    total_adr = filtered_df_adr['patients total ADR'].max()
     item1_qt = filtered_df1['p_queuing_time'].mean()
     print('item1:'+str(item_type1)+' time:'+str(item1_qt))
     #item2_qt = filtered_df2['p_queuing_time'].mean()
