@@ -33,7 +33,10 @@ clinic_list = df["Clinic Name"].unique()
 group_list = df["Group"].unique().tolist()
 item_list = pdf['p_type'].unique().tolist()
 
-df["Time"] = df["datetime"].apply(lambda x: dt.strptime(x, "%Y-%m-%d %H:%M:%S"))  # String -> Datetime
+try:
+    df["Time"] = df["datetime"].apply(lambda x: dt.strptime(x, "%Y-%m-%d %H:%M:%S"))  # String -> Datetime
+except:
+    df["Time"] = df["datetime"].apply(lambda x: dt.strptime(x, "%d/%m/%Y %H:%M"))  # String -> Datetime
 #df["Time"] = df["datetime"].apply(lambda x: dt.strptime(x, "%d/%m/%Y %H:%M"))  # String -> Datetime
 #df["Time"] = df["datetime"].apply(lambda x: dt.strptime(x, "%d/%m/%Y %H:%M:%S"))  # String -> Datetime
 
@@ -173,20 +176,23 @@ def generate_bar_graphs(clinic, hm_click, group_type, scenario_chair_num,scenari
     filtered_df1 = pdf[(pdf["Clinic Name"] == clinic) & (pdf["scenario_chairs"].isin(scenario_chair_num)) & (pdf["scenario_docs"].isin(scenario_doc_num))
                      & (pdf["scenario_nurses"].isin(scenario_nurse_num)) & (pdf["Group"].isin(group_type)) & (pdf["p_type"].isin(item_type1))]
 
-    filtered_df_adr = df[(pdf["Clinic Name"] == clinic) & (df["scenario_chairs"].isin(scenario_chair_num)) & (df["scenario_docs"].isin(scenario_doc_num))
+    filtered_df_adr = df[(df["Clinic Name"] == clinic) & (df["scenario_chairs"].isin(scenario_chair_num)) & (df["scenario_docs"].isin(scenario_doc_num))
                      & (df["scenario_nurses"].isin(scenario_nurse_num)) & (df["Group"].isin(group_type))]
 
     total_adr = filtered_df_adr['patients total ADR'].max()
+    total_pa = filtered_df_adr['all patients treated'].max()
     item1_qt = filtered_df1['p_queuing_time'].mean()
     print('item1:'+str(item_type1)+' time:'+str(item1_qt))
+    print('all patients treated:' + str(group_type) + ' total:' + str(total_pa)+' df len='+str(len(filtered_df_adr)))
+    print(filtered_df_adr[['Group','all patients treated']].tail(5))
     #item2_qt = filtered_df2['p_queuing_time'].mean()
     #item3_qt = filtered_df3['p_queuing_time'].mean()
 
     fig = go.Figure()
     fig.add_trace(go.Indicator(
         mode="gauge+number",
-        value=total_adr,
-        title={'text': "total ADR for scn: "+str(item_type1),'font':{'size':12}},
+        value=total_pa,
+        title={'text': "total patients: "+str(item_type1),'font':{'size':12}},
         domain={'x': [0.65, 1], 'y': [0.5, 1]}
     ))
     fig.add_trace(go.Indicator(
@@ -243,7 +249,7 @@ def generate_timeseries_graphs(start, end, clinic, hm_click, group_type, scenari
         yaxis=dict(side="left", ticks="", tickfont=dict(family="sans-serif"), ticksuffix=" "),
         hovermode="closest",
         showlegend=False,
-        height=300,
+        height=240,
         #width=800,
     )
     return {"data": data, "layout": layout}
@@ -388,7 +394,7 @@ def generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, sc
         ),
         hovermode="closest",
         showlegend=False,
-        height=300,
+        height=240,
         #width=800,
 
     )

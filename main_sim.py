@@ -12,6 +12,7 @@ SIM_TIME = 60*24*60
 class Audit_vars:
     def __init__(self, vars_id=1):
         self.id = vars_id
+        self.scn = ''
         self.warm_up = 1
         self.audit_time = []
         self.audit_all_patients_ever = []
@@ -245,7 +246,7 @@ class Hospital(object):
 
 
 #not sure if we can make this a class
-def Patient(env, id, hosp, ptype, audit_vars):
+def Patient(env, id, hosp, ptype, audit_vars, simpa=''):
     print('Patient %s type:%s arrives at the hospital at %.2f.' % (id, ptype, env.now))
     p_types={1:'Adjuvant',2:'Metastatic: Docetaxel',3:'Metastatic: Paclitaxel',4:'Metastatic: Xeloda'}
     p_adr = False
@@ -253,11 +254,11 @@ def Patient(env, id, hosp, ptype, audit_vars):
     # SIM_NAME = 'breast_meta_paclitaxel'
     # SIM_NAME = 'breast_meta_xeloda'
 
-    if(SIM_NAME=='breast_meta_docetaxel'):
+    if(simpa=='breast_meta_docetaxel'):
         p_type=2
-    elif(SIM_NAME=='breast_meta_paclitaxel'):
+    elif(simpa=='breast_meta_paclitaxel'):
         p_type=3
-    elif(SIM_NAME=='breast_meta_xeloda'):
+    elif(simpa=='breast_meta_xeloda'):
         p_type=4
     else:
         if(ptype is None):
@@ -597,10 +598,12 @@ def Patient(env, id, hosp, ptype, audit_vars):
 
 
 
-def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode, audit_vars):
+def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode, audit_vars, simpa):
     # Create the hospital
     audit_vars.hospital = Hospital(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists)
+    audit_vars.scn = simpa
     t_inter = audit_vars.audit_interval
+
     i = 0
     # Create initial
 
@@ -612,7 +615,7 @@ def setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, 
         while True:
             yield env.timeout(random.randint(t_inter, t_inter + 60*1))
             i += 1
-            env.process(Patient(env, i, audit_vars.hospital, None, audit_vars))
+            env.process(Patient(env, i, audit_vars.hospital, None, audit_vars, simpa))
 
 
 
@@ -821,10 +824,10 @@ def build_audit_results(audit_vars):
     audit_vars.results['scenario_nurses'] = num_nurses
     audit_vars.results['scenario_docs'] = num_docs
     audit_vars.results['Clinic Name'] = 'NCC'
-    audit_vars.results['Group'] = 'Breast'
+    audit_vars.results['Group'] = audit_vars.scn
     audit_vars.results['Admit Source'] = 'Follow Up'
 
-    SIM_NAME = 'breast=' + 'chairs_' + str(num_chairs) + ' nurses_' + str(num_nurses) + ' drs_' + str(num_docs)
+    SIM_NAME = 'breast=' + 'chairs_' + str(num_chairs) + ' nurses_' + str(num_nurses) + ' drs_' + str(num_docs) + '_'+audit_vars.scn
     audit_vars.patient_queuing_results.to_csv('patient results.csv')
     audit_vars.results.to_csv('operational results'+SIM_NAME+'.csv')
     #print(audit_vars.all_patients_ever)
@@ -835,7 +838,7 @@ def build_audit_results(audit_vars):
     pdf['scenario_nurses'] = num_nurses
     pdf['scenario_docs'] = num_docs
     pdf['Clinic Name'] = 'NCC'
-    pdf['Group'] = 'Breast'
+    pdf['Group'] = audit_vars.scn
     pdf['Admit Source'] = 'Follow Up'
 
     pdf.to_csv('all_patients_' + SIM_NAME + '.csv')
@@ -882,28 +885,30 @@ scenarios = \
 cnt = 1
 allopdf = None
 allpadf = None
-for scn in scenarios:
-    auditv = Audit_vars(cnt)
+simpas=['breast_meta_docetaxel','breast_meta_paclitaxel','breast_meta_xeloda','generic']
+for simpa in simpas:
+    for scn in scenarios:
+        auditv = Audit_vars(cnt)
 
-    num_chairs, num_nurses, num_docs = scn
-    print('auditv:' + str(auditv.id) + ' scenario:'+str(scn))
-    num_cashiers, num_pharmacists = (1,1)
-    SIM_NAME = 'breast='+'chairs_'+str(num_chairs)+' nurses_'+str(num_nurses)+' drs_'+str(num_docs)
-    sim_mode = 'schedule'#'schedule'
-    env = simpy.Environment()
-    env.process(setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode, auditv))
-    env.process(perform_audit(env, auditv))
-    # Execute!
-    env.run(until=SIM_TIME)
+        num_chairs, num_nurses, num_docs = scn
+        print('auditv:' + str(auditv.id) + ' scenario:'+str(scn))
+        num_cashiers, num_pharmacists = (1,1)
+        SIM_NAME = 'breast='+'chairs_'+str(num_chairs)+' nurses_'+str(num_nurses)+' drs_'+str(num_docs)
+        sim_mode = 'schedule'#'schedule'
+        env = simpy.Environment()
+        env.process(setup(env, num_docs, num_nurses, num_chairs, num_cashiers, num_pharmacists, sim_mode, auditv, simpa))
+        env.process(perform_audit(env, auditv))
+        # Execute!
+        env.run(until=SIM_TIME)
 
-    opdf, padf = build_audit_results(auditv)
-    if(cnt == 1):
-        allopdf = opdf
-        allpadf = padf
-    else:
-        allopdf=allopdf .append(opdf)
-        allpadf=allpadf.append(padf)
-    cnt = cnt + 1
+        opdf, padf = build_audit_results(auditv)
+        if(cnt == 1):
+            allopdf = opdf
+            allpadf = padf
+        else:
+            allopdf=allopdf .append(opdf)
+            allpadf=allpadf.append(padf)
+        cnt = cnt + 1
 
 allpadf.to_csv('all_patients_' + 'breast' + '.csv')
 allopdf.to_csv('operational resultsmeta1' + '.csv')
