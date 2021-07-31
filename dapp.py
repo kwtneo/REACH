@@ -394,9 +394,8 @@ def generate_patient_volume_heatmap(start, end, clinic, hm_click, group_type, sc
         ),
         hovermode="closest",
         showlegend=False,
-        height=24                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                        0,
-        #width=800,
-
+        height=24,
+        width=800,
     )
     return {"data": data, "layout": layout}
 
